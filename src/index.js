@@ -3,7 +3,7 @@ import { startBot } from './bot.js';
 import { startChainWatcher } from './chain.js';
 import { config, requireConfig } from './config.js';
 import { routes } from './routes.js';
-import { startExpirySweeper } from './sales.js';
+import { startDirectPoller, startExpirySweeper } from './sales.js';
 
 requireConfig();
 
@@ -13,5 +13,6 @@ app.use(routes);
 
 app.listen(config.PORT, () => console.log(`Sikka is listening on port ${config.PORT}`));
 startBot();
-startChainWatcher();
+if (config.PAY_MODE === 'direct') startDirectPoller();
+else startChainWatcher();
 startExpirySweeper();

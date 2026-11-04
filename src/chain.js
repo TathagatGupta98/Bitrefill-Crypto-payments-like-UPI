@@ -1,7 +1,19 @@
 import { createPublicClient, formatUnits, http, isAddress, parseAbiItem } from 'viem';
 import { base } from 'viem/chains';
+import { notifyOwner } from './bot.js';
 import { config } from './config.js';
-import { db, findPayableSale, getChainCursor, markLogSeen, saleRef, setChainCursor, sqlTime, transition } from './db.js';
+import {
+  db,
+  findExpiredSale,
+  findPayableSale,
+  getChainCursor,
+  getShopById,
+  markLogSeen,
+  saleRef,
+  setChainCursor,
+  sqlTime,
+  transition,
+} from './db.js';
 import { fulfillSale } from './fulfill.js';
 
 const POLL_MS = 4_000;
@@ -37,6 +49,15 @@ function handleTransfer(log) {
   const usdc = formatUnits(log.args.value, 6);
   if (!sale) {
     console.log(`Unmatched transfer of ${usdc} USDC from ${log.args.from} in ${log.transactionHash}`);
+    // A wrong amount can't be tied to a shop, but a late payment for an expired sale can.
+    const late = findExpiredSale(log.args.value.toString());
+    if (late) {
+      notifyOwner(
+        getShopById(late.shop_id),
+        `⚠️ Sale ${saleRef(late.id)} (₹${late.amount_inr}) had expired when ${usdc} USDC arrived from ${log.args.from}. ` +
+          'No card was bought. Refund the customer manually.',
+      );
+    }
     return;
   }
 

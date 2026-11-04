@@ -31,6 +31,9 @@ async function balanceAllows(usdCost) {
   }
 }
 
+// For the owner's status check: yes or no, never the raw balance.
+export const canAcceptPayments = () => balanceAllows(0);
+
 // Run with no `saleId` when creating a sale, and with its id right before buying. The re-check
 // leaves that sale out of today's totals and skips approval, which has already been dealt with.
 // Refusals come first so an owner is never asked to approve a sale that can't go through.

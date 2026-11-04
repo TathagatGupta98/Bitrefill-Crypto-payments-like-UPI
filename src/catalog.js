@@ -11,7 +11,6 @@ import { getCachedBalance } from './guardrails.js';
 
 export const ALLOWED_INR = [100, 500, 1000, 2000, 5000];
 
-const TEST_PRODUCT_ID = 'test-gift-card-code';
 const TEST_VALUE = 10;
 const PRODUCT_TTL_MS = 10 * 60_000;
 
@@ -70,7 +69,7 @@ export async function quote(amountInr) {
   // The customer still sees a realistic price, which keeps the pay page identical.
   if (config.BITREFILL_TEST_MODE) {
     return {
-      productId: TEST_PRODUCT_ID,
+      productId: config.BITREFILL_TEST_PRODUCT,
       value: TEST_VALUE,
       usdCost: 0,
       usdcUnits: customerUsdcUnits(amountInr / config.INR_PER_USD),

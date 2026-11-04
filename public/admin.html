@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sikka Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="admin">
+    <h1>Sales</h1>
+    <div class="admin-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref</th><th>Time (UTC)</th><th>Shop</th><th>₹</th><th>USDC</th><th>Status</th><th>Base tx</th><th>Invoice</th><th>Order</th><th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p id="empty" class="note" hidden>No sales yet.</p>
+  </main>
+
+  <script>
+    const REFRESH_MS = 5000;
+
+    function cell(row, text, href) {
+      const td = row.insertCell();
+      if (href) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = text;
+        td.append(link);
+      } else {
+        td.textContent = text ?? '–';
+      }
+    }
+
+    async function refresh() {
+      const sales = await (await fetch('/api/dev/sales')).json();
+      const body = document.getElementById('rows');
+      body.replaceChildren();
+      for (const sale of sales) {
+        const row = body.insertRow();
+        cell(row, `SIK-${sale.id.slice(0, 6).toUpperCase()}`);
+        cell(row, sale.created_at);
+        cell(row, sale.shop);
+        cell(row, sale.amount_inr.toLocaleString('en-IN'));
+        cell(row, (Number(sale.usdc_amount_units) / 1e6).toString());
+        cell(row, sale.status);
+        const tx = sale.payer_tx_hash;
+        cell(row, tx ? `${tx.slice(0, 10)}…` : null, tx ? `https://basescan.org/tx/${tx}` : null);
+        cell(row, sale.bitrefill_invoice_id);
+        cell(row, sale.bitrefill_order_id);
+        cell(row, sale.error);
+      }
+      document.getElementById('empty').hidden = sales.length > 0;
+    }
+
+    refresh();
+    setInterval(() => refresh().catch(() => {}), REFRESH_MS);
+  </script>
+</body>
+</html>

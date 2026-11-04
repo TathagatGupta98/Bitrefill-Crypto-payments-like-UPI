@@ -307,3 +307,161 @@ a {
   margin-top: 24px;
   color: #ffffff;
 }
+
+.standee-page {
+  background: var(--background);
+}
+
+.print-button {
+  display: block;
+  width: auto;
+  margin: 16px auto;
+  padding: 10px 24px;
+  font-size: 16px;
+}
+
+.standee {
+  max-width: 148mm;
+  margin: 0 auto 24px;
+  padding: 24px 16px;
+  border: 2px solid var(--brand);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.standee-brand {
+  margin: 0 0 8px;
+  color: var(--brand);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.standee h1 {
+  margin: 0;
+  font-size: 32px;
+  overflow-wrap: anywhere;
+}
+
+.standee-line {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.standee-qr {
+  display: block;
+  width: 100%;
+  max-width: 100mm;
+  height: auto;
+  margin: 16px auto;
+}
+
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 8mm;
+  }
+
+  .standee-page {
+    background: #ffffff;
+  }
+
+  .print-button {
+    display: none;
+  }
+
+  .standee {
+    margin: 0 auto;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+.soundbox-page {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.soundbox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 440px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.soundbox h1 {
+  margin: 0 0 16px;
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+
+.listening {
+  margin: 0;
+  color: #9fb3c4;
+  font-size: 18px;
+}
+
+.flash {
+  margin: 24px 0;
+  color: #4ade80;
+  font-size: 64px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.today-label {
+  margin: 32px 0 0;
+  color: #9fb3c4;
+  font-size: 14px;
+}
+
+.today {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.admin {
+  padding: 16px;
+}
+
+.admin h1 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.admin-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+td a {
+  color: var(--brand);
+}

@@ -1,16 +1,33 @@
 import { nanoid } from 'nanoid';
-import { formatUnits } from 'viem';
-import { BitrefillError } from './bitrefill.js';
+import QRCode from 'qrcode';
+import { formatUnits, parseUnits } from 'viem';
+import { BitrefillError, createInvoice, getInvoice } from './bitrefill.js';
+import { requestApproval } from './bot.js';
 import { ALLOWED_INR, quote } from './catalog.js';
 import { config } from './config.js';
-import { expireOldSales, getShopBySlug, insertSale, openSaleUnits, saleRef, sqlTime } from './db.js';
+import {
+  awaitingDirectSales,
+  expireOldSales,
+  getShopBySlug,
+  insertSale,
+  openSaleUnits,
+  saleRef,
+  sqlTime,
+  transition,
+} from './db.js';
+import { fulfillSale } from './fulfill.js';
 import { checkSale } from './guardrails.js';
 
 const USDC_DECIMALS = 6;
 const TAIL_STEP_UNITS = 100;
 const MAX_TAIL = 99;
 const SWEEP_MS = 30_000;
+// GET /invoices/{id} allows 60 calls per 10 minutes.
+const DIRECT_POLL_MS = 15_000;
 const UNAVAILABLE = 'temporarily unavailable';
+
+const isDirect = () => config.PAY_MODE === 'direct';
+const newExpiry = () => sqlTime(new Date(Date.now() + config.SALE_TTL_MIN * 60_000));
 
 // Refusals reach the customer, so API and network errors are logged instead of shown.
 async function quoteAndCheck(shop, amountInr) {
@@ -35,7 +52,27 @@ function uniqueUnits(baseUnits) {
   return free.length ? free[Math.floor(Math.random() * free.length)] : null;
 }
 
-// Returns { sale } or { reason }. Task 5 pings the owner for sales that come back awaiting_approval.
+// Direct mode: the customer pays this invoice, so Bitrefill sets the address and the amount.
+// The docs show payment.price as a decimal coin amount, but have no usdc_base example to confirm it.
+async function directInvoiceFields(offer) {
+  const item = offer.packageId ? { package_id: offer.packageId } : { value: offer.value };
+  const invoice = await createInvoice({
+    products: [{ product_id: offer.productId, quantity: 1, ...item }],
+    payment_method: 'usdc_base',
+    refund_address: config.RECEIVE_ADDRESS,
+  });
+  if (!invoice.payment?.address || !invoice.payment?.price) {
+    throw new Error(`Bitrefill invoice ${invoice.id} has no payment details`);
+  }
+  return {
+    usdc_amount_units: parseUnits(String(invoice.payment.price), USDC_DECIMALS).toString(),
+    pay_address: invoice.payment.address,
+    bitrefill_invoice_id: invoice.id,
+    bitrefill_order_id: invoice.orders?.[0]?.id ?? null,
+  };
+}
+
+// Returns { sale } or { reason }.
 export async function createSale(slug, amountInr) {
   const shop = typeof slug === 'string' ? getShopBySlug(slug) : null;
   if (!shop) return { reason: 'shop not found' };
@@ -43,21 +80,46 @@ export async function createSale(slug, amountInr) {
   const { offer, check } = await quoteAndCheck(shop, amountInr);
   if (check.ok === false) return { reason: check.reason };
 
-  // No await between picking the amount and inserting, so two sales can't pick the same one.
-  const usdcUnits = uniqueUnits(offer.usdcUnits);
-  if (!usdcUnits) return { reason: UNAVAILABLE };
-
   const sale = {
     id: nanoid(),
     shop_id: shop.id,
     amount_inr: amountInr,
     usd_cost: offer.usdCost,
-    usdc_amount_units: usdcUnits,
     status: check.needsApproval ? 'awaiting_approval' : 'awaiting_payment',
-    expires_at: sqlTime(new Date(Date.now() + config.SALE_TTL_MIN * 60_000)),
+    expires_at: newExpiry(),
+    usdc_amount_units: offer.usdcUnits,
+    pay_address: null,
+    bitrefill_invoice_id: null,
+    bitrefill_order_id: null,
   };
+
+  if (isDirect()) {
+    // A sale that needs approval gets its invoice once the owner approves.
+    if (!check.needsApproval) {
+      try {
+        Object.assign(sale, await directInvoiceFields(offer));
+      } catch (err) {
+        console.error(`Could not create a direct invoice: ${err.message}`);
+        return { reason: UNAVAILABLE };
+      }
+    }
+  } else {
+    // No await between picking the amount and inserting, so two sales can't pick the same one.
+    sale.usdc_amount_units = uniqueUnits(offer.usdcUnits);
+    if (!sale.usdc_amount_units) return { reason: UNAVAILABLE };
+  }
+
   insertSale(sale);
+  if (check.needsApproval) await requestApproval(shop, sale);
   return { sale };
+}
+
+// The customer gets a fresh payment window, because the wait for the owner shouldn't use it up.
+// Returns false if the sale was no longer waiting for approval.
+export async function approveSale(sale) {
+  const fields = { expires_at: newExpiry() };
+  if (isDirect()) Object.assign(fields, await directInvoiceFields(await quote(sale.amount_inr)));
+  return transition(sale.id, 'awaiting_approval', 'awaiting_payment', fields);
 }
 
 // One entry per chip on the pay page, using the same checks as creating a sale.
@@ -70,21 +132,25 @@ export async function amountOptions(shop) {
   return options;
 }
 
+export const shopPayUrl = (shop) => `${config.PUBLIC_URL}/pay/${shop.slug}`;
+export const shopQrPng = (shop) => QRCode.toBuffer(shopPayUrl(shop), { width: 800, margin: 2 });
+
 const isoTime = (sqlite) => (sqlite ? `${sqlite.replace(' ', 'T')}Z` : null);
 
-function eip681(units) {
-  return `ethereum:${config.USDC_BASE_ADDRESS}@8453/transfer?address=${config.RECEIVE_ADDRESS}&uint256=${units}`;
+function eip681(address, units) {
+  return `ethereum:${config.USDC_BASE_ADDRESS}@8453/transfer?address=${address}&uint256=${units}`;
 }
 
 // What the customer's browser sees. Never add card fields or `error` here.
 export function saleView(sale) {
+  const address = sale.pay_address ?? config.RECEIVE_ADDRESS;
   return {
     id: sale.id,
     status: sale.status,
     amountInr: sale.amount_inr,
     usdc: formatUnits(BigInt(sale.usdc_amount_units), USDC_DECIMALS),
-    address: config.RECEIVE_ADDRESS,
-    eip681: eip681(sale.usdc_amount_units),
+    address,
+    eip681: eip681(address, sale.usdc_amount_units),
     expiresAt: isoTime(sale.expires_at),
     deliveredAt: isoTime(sale.delivered_at),
     ref: saleRef(sale.id),
@@ -98,4 +164,29 @@ export function startExpirySweeper() {
     const expired = expireOldSales();
     if (expired) console.log(`Expired ${expired} unpaid sale(s)`);
   }, SWEEP_MS);
+}
+
+// Direct mode has no chain watcher: Bitrefill sees the payment and moves the invoice on.
+// Anything past `unpaid` hands the sale to fulfill.js, which follows the existing invoice to the end.
+async function checkDirectPayments() {
+  for (const sale of awaitingDirectSales()) {
+    try {
+      const invoice = await getInvoice(sale.bitrefill_invoice_id);
+      if (invoice.status === 'unpaid') continue;
+      if (transition(sale.id, 'awaiting_payment', 'paid', { paid_at: sqlTime() })) {
+        console.log(`Sale ${saleRef(sale.id)} paid directly: invoice is ${invoice.status}`);
+        fulfillSale(sale.id).catch((err) => console.error(`Sale ${saleRef(sale.id)} failed: ${err.message}`));
+      }
+    } catch (err) {
+      console.error(`Sale ${saleRef(sale.id)} invoice check failed: ${err.message}`);
+    }
+  }
+}
+
+export function startDirectPoller() {
+  const tick = async () => {
+    await checkDirectPayments();
+    setTimeout(tick, DIRECT_POLL_MS);
+  };
+  tick();
 }

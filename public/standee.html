@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sikka Standee</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="standee-page">
+  <button class="primary print-button" onclick="window.print()">🖨 Print</button>
+
+  <article class="standee">
+    <p class="standee-brand">Sikka</p>
+    <h1 id="shop-name">Loading…</h1>
+    <p class="standee-line">Pay with crypto · USDC</p>
+    <img id="qr" class="standee-qr" alt="QR code to pay this shop" width="800" height="800">
+    <p class="verified">✓ Verified Sikka merchant</p>
+    <p class="standee-line">Scan with phone camera — no app needed</p>
+  </article>
+
+  <script>
+    const slug = location.pathname.split('/')[2];
+    document.getElementById('qr').src = `/qr/${slug}.png`;
+    fetch(`/api/shops/${slug}/summary`)
+      .then((res) => (res.ok ? res.json() : { name: 'Shop not found' }))
+      .then(({ name }) => {
+        document.getElementById('shop-name').textContent = name;
+      });
+  </script>
+</body>
+</html>

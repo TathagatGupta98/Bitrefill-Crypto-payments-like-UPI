@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sikka Soundbox</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="soundbox-page">
+  <main class="soundbox">
+    <h1 id="shop-name">Loading…</h1>
+
+    <button id="start" class="primary">🔊 Tap to start soundbox</button>
+
+    <div id="live" hidden>
+      <p id="listening" class="listening">Listening…</p>
+      <p id="flash" class="flash" hidden></p>
+      <p class="today-label">Today</p>
+      <p id="today" class="today"></p>
+    </div>
+  </main>
+
+  <script>
+    const FLASH_MS = 6000;
+    const slug = location.pathname.split('/')[2];
+    const $ = (id) => document.getElementById(id);
+    const rupees = (inr) => `₹${inr.toLocaleString('en-IN')}`;
+    let audio;
+    let flashTimer;
+
+    async function refreshToday() {
+      const res = await fetch(`/api/shops/${slug}/summary`);
+      if (!res.ok) {
+        $('shop-name').textContent = 'Shop not found';
+        return false;
+      }
+      const { name, todayInr, todayCount } = await res.json();
+      $('shop-name').textContent = name;
+      $('today').textContent = `${rupees(todayInr)} · ${todayCount} sale${todayCount === 1 ? '' : 's'}`;
+      return true;
+    }
+
+    function chime() {
+      [880, 1175].forEach((frequency, index) => {
+        const start = audio.currentTime + index * 0.18;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.4, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(start);
+        osc.stop(start + 0.35);
+      });
+    }
+
+    function speak(amountInr) {
+      const utterance = new SpeechSynthesisUtterance(`crypto se ${amountInr} rupaye prapt hue`);
+      utterance.lang = 'hi-IN';
+      // If the phone has no Hindi voice, the default one still reads the words out.
+      const voice = speechSynthesis.getVoices().find((candidate) => candidate.lang.replace('_', '-') === 'hi-IN');
+      if (voice) utterance.voice = voice;
+      speechSynthesis.speak(utterance);
+    }
+
+    function announce(amountInr) {
+      chime();
+      setTimeout(() => speak(amountInr), 700);
+
+      $('flash').textContent = `+ ${rupees(amountInr)}`;
+      $('flash').hidden = false;
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => {
+        $('flash').hidden = true;
+      }, FLASH_MS);
+    }
+
+    async function keepScreenOn() {
+      try {
+        await navigator.wakeLock?.request('screen');
+      } catch {
+        // Not supported everywhere, and the soundbox still works without it.
+      }
+    }
+
+    function listen() {
+      const source = new EventSource(`/api/shops/${slug}/events`);
+      // Also runs after a reconnect, in case a sale came in while the connection was down.
+      source.onopen = () => {
+        $('listening').textContent = 'Listening…';
+        refreshToday();
+      };
+      source.onerror = () => {
+        $('listening').textContent = 'Reconnecting…';
+      };
+      source.onmessage = (message) => {
+        const event = JSON.parse(message.data);
+        if (event.type !== 'delivered') return;
+        announce(event.amountInr);
+        refreshToday();
+      };
+    }
+
+    // Browsers only allow sound after a tap, so everything audio starts here.
+    $('start').addEventListener('click', () => {
+      audio = new AudioContext();
+      audio.resume();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      keepScreenOn();
+      $('start').hidden = true;
+      $('live').hidden = false;
+      listen();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && audio) keepScreenOn();
+    });
+
+    refreshToday();
+  </script>
+</body>
+</html>

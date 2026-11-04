@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS sales (
   usd_cost REAL,
   usdc_amount_units TEXT NOT NULL,
   status TEXT NOT NULL,
+  pay_address TEXT,
   payer_address TEXT,
   payer_tx_hash TEXT,
   bitrefill_invoice_id TEXT,
@@ -47,6 +48,11 @@ CREATE TABLE IF NOT EXISTS seen_logs (tx_hash TEXT, log_index INTEGER, PRIMARY K
 CREATE TABLE IF NOT EXISTS onboarding (chat_id TEXT PRIMARY KEY, step TEXT, name TEXT, phone TEXT);
 `);
 
+// CREATE TABLE IF NOT EXISTS doesn't add columns to a database made by an earlier version.
+if (!db.pragma('table_info(sales)').some((column) => column.name === 'pay_address')) {
+  db.exec('ALTER TABLE sales ADD COLUMN pay_address TEXT');
+}
+
 // Sales that count towards the daily caps. Expired, rejected and failed sales release their share.
 const COUNTED_STATUSES = `('awaiting_approval', 'awaiting_payment', 'paid', 'purchasing', 'delivered', 'claimed')`;
 // Timestamps are stored in UTC, but the caps reset at midnight in India.
@@ -57,8 +63,10 @@ const shopBySlug = db.prepare('SELECT * FROM shops WHERE slug = ?');
 const shopByChat = db.prepare('SELECT * FROM shops WHERE telegram_chat_id = ?');
 const saleById = db.prepare('SELECT * FROM sales WHERE id = ?');
 const saleInsert = db.prepare(`
-  INSERT INTO sales (id, shop_id, amount_inr, usd_cost, usdc_amount_units, status, expires_at)
-  VALUES (@id, @shop_id, @amount_inr, @usd_cost, @usdc_amount_units, @status, @expires_at)
+  INSERT INTO sales (id, shop_id, amount_inr, usd_cost, usdc_amount_units, status, expires_at,
+                     pay_address, bitrefill_invoice_id, bitrefill_order_id)
+  VALUES (@id, @shop_id, @amount_inr, @usd_cost, @usdc_amount_units, @status, @expires_at,
+          @pay_address, @bitrefill_invoice_id, @bitrefill_order_id)
 `);
 const shopToday = db.prepare(`
   SELECT COUNT(*) AS count, COALESCE(SUM(amount_inr), 0) AS totalInr
@@ -87,6 +95,52 @@ const cursorWrite = db.prepare(`
   ON CONFLICT (id) DO UPDATE SET last_block = excluded.last_block
 `);
 const seenLogInsert = db.prepare('INSERT OR IGNORE INTO seen_logs (tx_hash, log_index) VALUES (?, ?)');
+const expiredSale = db.prepare(`
+  SELECT * FROM sales WHERE status = 'expired' AND usdc_amount_units = ? ORDER BY expires_at DESC
+`);
+const directSales = db.prepare(`
+  SELECT * FROM sales WHERE status = 'awaiting_payment' AND bitrefill_invoice_id IS NOT NULL
+`);
+
+const shopInsert = db.prepare(`
+  INSERT INTO shops (slug, name, phone, telegram_chat_id, payout, per_sale_cap_inr, daily_cap_inr)
+  VALUES (@slug, @name, @phone, @telegram_chat_id, @payout, @per_sale_cap_inr, @daily_cap_inr)
+`);
+const capsUpdate = db.prepare('UPDATE shops SET per_sale_cap_inr = ?, daily_cap_inr = ? WHERE id = ?');
+const onboardingRead = db.prepare('SELECT * FROM onboarding WHERE chat_id = ?');
+const onboardingWrite = db.prepare(`
+  INSERT INTO onboarding (chat_id, step, name, phone) VALUES (@chat_id, @step, @name, @phone)
+  ON CONFLICT (chat_id) DO UPDATE SET step = excluded.step, name = excluded.name, phone = excluded.phone
+`);
+const onboardingDelete = db.prepare('DELETE FROM onboarding WHERE chat_id = ?');
+
+// Only money that actually reached the shop counts as earned.
+const EARNED_STATUSES = `('delivered', 'claimed')`;
+const PERIOD_FILTERS = {
+  today: IS_TODAY_IST,
+  week: `created_at >= datetime('now', '-7 days')`,
+  all: '1 = 1',
+};
+const summaryByPeriod = Object.fromEntries(
+  Object.entries(PERIOD_FILTERS).map(([period, filter]) => [
+    period,
+    db.prepare(`
+      SELECT COUNT(*) AS count, COALESCE(SUM(amount_inr), 0) AS totalInr,
+             COALESCE(SUM(status = 'delivered'), 0) AS unclaimed
+      FROM sales WHERE shop_id = ? AND status IN ${EARNED_STATUSES} AND ${filter}
+    `),
+  ]),
+);
+// These two lists leave out the card columns on purpose.
+const recent = db.prepare(`
+  SELECT id, amount_inr, status, created_at FROM sales WHERE shop_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?
+`);
+const adminList = db.prepare(`
+  SELECT s.id, shops.name AS shop, s.amount_inr, s.usd_cost, s.usdc_amount_units, s.status, s.payer_address,
+         s.payer_tx_hash, s.bitrefill_invoice_id, s.bitrefill_order_id, s.error, s.created_at
+  FROM sales s JOIN shops ON shops.id = s.shop_id ORDER BY s.created_at DESC, s.rowid DESC LIMIT ?
+`);
+const unclaimed = db.prepare(`SELECT * FROM sales WHERE shop_id = ? AND status = 'delivered' ORDER BY created_at`);
 
 // Same format as SQLite's datetime('now'), so stored timestamps compare correctly.
 export const sqlTime = (date = new Date()) => date.toISOString().slice(0, 19).replace('T', ' ');
@@ -121,3 +175,21 @@ export const getChainCursor = () => cursorRead.get()?.last_block ?? null;
 export const setChainCursor = (block) => cursorWrite.run(block);
 // Returns false if this log was already handled.
 export const markLogSeen = (txHash, logIndex) => seenLogInsert.run(txHash, logIndex).changes === 1;
+// The newest expired sale for an amount, used to tell the right shop about a late payment.
+export const findExpiredSale = (units) => expiredSale.get(units);
+export const awaitingDirectSales = () => directSales.all();
+
+export function insertShop(shop) {
+  shopInsert.run(shop);
+  return getShopBySlug(shop.slug);
+}
+export const updateCaps = (shopId, perSaleInr, dailyInr) => capsUpdate.run(perSaleInr, dailyInr, shopId);
+
+export const getOnboarding = (chatId) => onboardingRead.get(String(chatId));
+export const saveOnboarding = (row) => onboardingWrite.run({ ...row, chat_id: String(row.chat_id) });
+export const deleteOnboarding = (chatId) => onboardingDelete.run(String(chatId));
+
+export const salesSummary = (shopId, period) => summaryByPeriod[period].get(shopId);
+export const recentSales = (shopId, limit) => recent.all(shopId, limit);
+export const unclaimedSales = (shopId) => unclaimed.all(shopId);
+export const adminSales = (limit) => adminList.all(limit);

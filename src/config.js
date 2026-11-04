@@ -22,6 +22,8 @@ export const config = {
   BITREFILL_API_KEY: str('BITREFILL_API_KEY'),
   BITREFILL_BASE_URL: str('BITREFILL_BASE_URL', 'https://api.bitrefill.com/v2').replace(/\/+$/, ''),
   BITREFILL_TEST_MODE: bool('BITREFILL_TEST_MODE', true),
+  // Set to test-gift-card-code-fail to demo the failed-purchase path.
+  BITREFILL_TEST_PRODUCT: str('BITREFILL_TEST_PRODUCT', 'test-gift-card-code'),
   PHONEPE_PRODUCT_ID: str('PHONEPE_PRODUCT_ID', 'phonepe-india'),
   TELEGRAM_BOT_TOKEN: str('TELEGRAM_BOT_TOKEN'),
   LLM_BASE_URL: str('LLM_BASE_URL', 'https://api.groq.com/openai/v1'),
@@ -39,6 +41,8 @@ export const config = {
   AGENT_MAX_DAILY_USD: num('AGENT_MAX_DAILY_USD', 10),
   BALANCE_FLOOR_USD: num('BALANCE_FLOOR_USD', 2),
   DEV_MODE: bool('DEV_MODE', false),
+  // relay: the customer pays Sikka, which buys from balance. direct: the customer pays Bitrefill's invoice.
+  PAY_MODE: str('PAY_MODE', 'relay'),
 };
 
 // Scripts pass only the vars they use, so the smoke test doesn't need a bot token.

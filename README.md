@@ -2,7 +2,7 @@
 
 **An Indian shopkeeper accepts USDC through one Telegram chat and one printed QR.**
 
-A customer scans the shop's QR, picks ₹100 and pays USDC on Base from their own wallet. The Sikka agent sees the payment on-chain, checks the shop's guardrails, buys a PhonePe gift card from Bitrefill with Sikka's account balance, and delivers the card to the owner on Telegram. A browser "soundbox" on the counter then announces *"crypto se 100 rupaye prapt hue"*.
+A customer scans the shop's QR, picks ₹100 and pays USDC on Base from their own wallet. The Sikka agent checks the shop's guardrails, creates a Bitrefill invoice for a PhonePe gift card, sees the payment land, and delivers the card to the owner on Telegram. A browser "soundbox" on the counter then announces *"crypto se 100 rupaye prapt hue"*.
 
 The owner never touches a crypto wallet, and the customer never installs an app. No human is involved at checkout.
 
@@ -24,11 +24,11 @@ Built for Free Society Hack, Agentic Commerce (Bitrefill) track.
 
 ## Bitrefill touchpoints
 
-- **REST API v2:** `/products`, `/products/search`, `/accounts/balance`, `/invoices` with `balance` + `auto_pay`, `/invoices/{id}`, `/orders/{id}`
+- **REST API v2:** `/products`, `/products/search`, `/accounts/balance`, `/invoices` with `usdc_base` (direct) or `balance` + `auto_pay` (relay), `/invoices/{id}`, `/orders/{id}`
 - **Test products** during development: `test-gift-card-code`, and `test-gift-card-code-fail` for the failure path
 - **Docs** while coding
 
-**Built:** payment page, Base USDC watcher with unique-amount matching, guardrail engine, Telegram merchant agent, soundbox.
+**Built:** payment page, direct invoice payments, Base USDC watcher with unique-amount matching, guardrail engine, Telegram merchant agent, soundbox.
 
 **Reused:** Bitrefill catalog and fulfillment, PhonePe gift card redemption, grammY, viem.
 
@@ -36,14 +36,14 @@ Built for Free Society Hack, Agentic Commerce (Bitrefill) track.
 
 - **Per purchase:** the shop's per-sale cap (default ₹500). Anything above needs the **shop owner's approval** in Telegram. Hard ceiling: ₹5,000 per sale and `AGENT_MAX_PER_PURCHASE_USD` ($60).
 - **Per day:** the shop's daily cap (default ₹2,000), plus an agent-wide `AGENT_MAX_DAILY_USD` ($10 during the hackathon) across all shops.
-- **Balance floor:** no sale starts if the Bitrefill balance would fall below $2.
-- **Checked twice:** when the sale is created (before the customer is shown a payment address) and again right before buying.
+- **Balance floor (relay mode):** no sale starts if the Bitrefill balance would fall below $2. Direct mode doesn't touch the balance, so the floor doesn't apply there.
+- **Checked before the customer pays:** guardrails run when the sale is created, before any payment address is shown. Relay mode checks again right before buying.
 - **Who approves above the limit:** the shop owner, using the Approve/Reject buttons. Only the operator (by editing env) can raise the agent-wide caps.
-- **No double buys:** one invoice per sale, saved before polling; guarded state transitions; each on-chain log is handled once.
+- **No double buys:** one invoice per sale, saved before polling; guarded state transitions; in relay mode, each on-chain log is handled once.
 - **Card codes:** stored only until the owner taps "Claimed", then wiped. Never returned by the public API, logged or sent to the LLM.
 - **The LLM can't spend:** it answers the owner's questions with read-only tools plus `update_caps`, limited to the same ceilings. Every money step is deterministic code.
 
-**Known MVP gaps:** Sikka briefly holds customer USDC (relay mode). Dev, admin, soundbox and summary routes have no auth, so anyone with a shop's link can see its daily total. Codes are stored in plaintext until claimed. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
+**Known MVP gaps:** Sikka briefly holds customer USDC in relay mode. Direct mode refunds go to the operator's address, then back to the customer by hand. A direct payment made after a sale expires isn't tracked. Dev, admin, soundbox and summary routes have no auth, so anyone with a shop's link can see its daily total. Codes are stored in plaintext until claimed. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
 
 ## Run it in under 15 minutes
 
@@ -76,13 +76,29 @@ Send `/start` to your bot, answer three questions, and open the QR it sends.
 
 Everything stays free while `BITREFILL_TEST_MODE=true`. With `DEV_MODE=true`, the pay page has a "Simulate payment" link and `/admin` lists sales.
 
-**To go live:** run `npm run find-product` to confirm the product and packages, then set `BITREFILL_TEST_MODE=false` and `DEV_MODE=false`.
+**To go live:** run `npm run find-product` to confirm the product and packages, then set `PAY_MODE=direct` and `BITREFILL_TEST_MODE=false`. Real purchases can't be simulated in this mode, and the app won't start with direct mode and test mode together, because Bitrefill charges real USDC even for test cards.
 
-**To see the failure path:** set `BITREFILL_TEST_PRODUCT=test-gift-card-code-fail`. The purchase fails and the owner is told a refund is needed.
+**To see the failure path:** in relay test mode, set `BITREFILL_TEST_PRODUCT=test-gift-card-code-fail`. The purchase fails and the owner is told a refund is needed.
 
 ## Architecture
 
 One Node process, SQLite, and plain HTML pages with no build step.
+
+There are two payment modes, set by `PAY_MODE`.
+
+**Direct (used for real purchases):** the customer pays Bitrefill's invoice, so Sikka never holds funds.
+
+```
+Customer picks ₹100 --> guardrails OK? --> POST /v2/invoices {payment_method: usdc_base}
+                                                  |
+Customer wallet --USDC on Base--> the invoice's own payment address
+                                                  |
+                      poll invoice -> paid -> all_delivered -> GET /v2/orders/{id}
+                                                  |
+      Telegram: card code + PIN to the owner;  SSE: soundbox speaks;  pay page goes green
+```
+
+**Relay (free rehearsal with test cards):** the customer pays Sikka, and Sikka buys from its Bitrefill balance.
 
 ```
 Customer wallet --USDC on Base--> RECEIVE_ADDRESS
@@ -91,12 +107,14 @@ Customer wallet --USDC on Base--> RECEIVE_ADDRESS
                                         |
             guardrails OK? --> POST /v2/invoices {payment_method: balance, auto_pay: true}
                                         |
-                        poll invoice -> complete -> GET /v2/orders/{id}
+                  poll invoice -> all_delivered -> GET /v2/orders/{id}
                                         |
          Telegram: card code + PIN to the owner;  SSE: soundbox speaks;  pay page goes green
 ```
 
-Each sale gets a unique USDC amount, such as `1.1849`, so a payment needs no memo: the watcher matches on the exact amount and the receive address.
+In relay mode, each sale gets a unique USDC amount, such as `1.1849`, so a payment needs no memo: the watcher matches on the exact amount and the receive address.
+
+**Why direct is the live path:** the hackathon's $25 credit is held in USD, and we couldn't spend it through the REST API. `payment_method: balance` returned `balance_too_low`, with or without `balance_currency: USD`. See [FEEDBACK.md](FEEDBACK.md).
 
 | File | Job |
 |---|---|
@@ -110,7 +128,7 @@ Each sale gets a unique USDC amount, such as `1.1849`, so a payment needs no mem
 
 ## Limits and next steps
 
-- **Non-custodial mode:** `PAY_MODE=direct` has the customer pay the Bitrefill invoice directly, so Sikka never holds funds. It's written, but only tested against a mock API, because Bitrefill's free test products only work with balance payments. Treat it as experimental.
+- A markup for the shop and automatic refunds in direct mode
 - Lightning, WhatsApp and odd amounts
 - An ESP32 hardware soundbox
 - Bitrefill Business API for production

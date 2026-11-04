@@ -3,6 +3,7 @@
 //   GET /products/{id}    -> id, currency, in_stock, packages (no range on phonepe-india)
 //     packages[]          -> id ("phonepe-india<&>100"), value ("100"), amount, price (account currency; sats on BTC)
 //   POST /invoices        -> id, status ("not_delivered"), payment{method, currency, price, status, commission}, orders[{id, status}]
+//     on usdc_base        -> payment{address (one per invoice), currency "USDC", price (6-decimal units: 1140000 = 1.14 USDC)}
 //   GET /invoices/{id}    -> status all_delivered | all_error, and orders[] include redemption_info, so never log them
 //   GET /orders/{id}      -> id, status delivered | permanent_failure, redemption_info{code, instructions, other, extra_fields}
 import { getProduct } from './bitrefill.js';

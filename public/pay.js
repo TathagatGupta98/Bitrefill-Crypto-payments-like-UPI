@@ -126,8 +126,8 @@ function renderResult(sale) {
   $('result-ref').textContent = sale.ref;
   $('result-time-row').hidden = !success;
   $('result-time').textContent = success ? new Date(sale.deliveredAt).toLocaleString('en-IN') : '';
-  $('result-tx-row').hidden = !sale.txHash;
-  if (sale.txHash) $('result-tx').href = `https://basescan.org/tx/${sale.txHash}`;
+  $('result-tx-row').hidden = !sale.explorerUrl;
+  if (sale.explorerUrl) $('result-tx').href = sale.explorerUrl;
   $('result-again').href = `/pay/${slug}`;
   document.querySelector('meta[name="theme-color"]').content = success ? '#0a7d4f' : '#b5352a';
   if (success) navigator.vibrate?.(80);

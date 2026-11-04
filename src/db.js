@@ -137,7 +137,7 @@ const recent = db.prepare(`
 `);
 const adminList = db.prepare(`
   SELECT s.id, shops.name AS shop, s.amount_inr, s.usd_cost, s.usdc_amount_units, s.status, s.payer_address,
-         s.payer_tx_hash, s.bitrefill_invoice_id, s.bitrefill_order_id, s.error, s.created_at
+         s.payer_tx_hash, s.pay_address, s.paid_at, s.bitrefill_invoice_id, s.bitrefill_order_id, s.error, s.created_at
   FROM sales s JOIN shops ON shops.id = s.shop_id ORDER BY s.created_at DESC, s.rowid DESC LIMIT ?
 `);
 const unclaimed = db.prepare(`SELECT * FROM sales WHERE shop_id = ? AND status = 'delivered' ORDER BY created_at`);

@@ -14,3 +14,9 @@
 - Package fields on the live API are `id`, `value`, `price`, `amount`; the guides say `package_id`.
 - `/accounts/balance` returned `0 BTC` on an account expected to hold $25 of credit, and prices come back in the account's currency (sats), not USD.
 - `GET /invoices/{id}` includes each order's `redemption_info`, so logging an invoice leaks the card code.
+- A real `POST /invoices` with `payment_method: balance` returned `balance_too_low` while the website showed $25 of USD store credits. The REST API appears to use the BTC sub-account only.
+- `balance_currency` (choose the USD, EUR or XBT sub-account) is documented for the eCommerce MCP server but not for REST. On REST, test-card invoices with `balance_currency: USD` were accepted but still priced in BTC.
+- The event's $25 credit is in USD, while the REST docs never mention store credits or sub-accounts, so nothing explains how to spend it through the API.
+- A second real purchase with `balance_currency: USD` on REST also returned `balance_too_low`, so we found no way to spend the event's USD credit through the REST API.
+- `payment.price` on `usdc_base` is in 6-decimal units (`1140000` = 1.14 USDC), while the docs' only crypto example is a decimal coin amount (`0.00123456` BTC). Following that example would ask a customer for 1,140,000 USDC.
+- Test products aren't free with crypto payment methods: a `test-gift-card-code` invoice on `usdc_base` asks for 10.50 real USDC.

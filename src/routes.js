@@ -71,6 +71,7 @@ if (config.DEV_MODE) {
   routes.get('/api/dev/sales', (req, res) => res.json(adminSales(ADMIN_SALES_LIMIT)));
 
   routes.post('/api/dev/sales/:id/mark-paid', (req, res) => {
+    if (config.PAY_MODE === 'direct') return res.status(409).json({ reason: "direct mode can't be simulated" });
     const sale = getSale(req.params.id);
     if (!sale) return res.status(404).json({ reason: 'sale not found' });
     if (!transition(sale.id, 'awaiting_payment', 'paid', { paid_at: sqlTime() })) {

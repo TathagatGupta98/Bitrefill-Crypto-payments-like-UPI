@@ -4,10 +4,12 @@ import { quote } from './catalog.js';
 import { getSale, getShopById, saleRef, sqlTime, transition } from './db.js';
 import { events } from './events.js';
 import { checkSale } from './guardrails.js';
+import { config } from './config.js';
 
 // GET /invoices/{id} and /orders/{id} each allow 60 calls per 10 minutes.
-const POLL_MS = 5_000;
-const POLL_TIMEOUT_MS = 120_000;
+// A direct payment needs on-chain confirmations first, which the docs put at 1-5 minutes on L2s.
+const POLL_MS = config.PAY_MODE === 'direct' ? 15_000 : 5_000;
+const POLL_TIMEOUT_MS = config.PAY_MODE === 'direct' ? 900_000 : 120_000;
 
 // The live API uses all_delivered, all_error and permanent_failure. The rest are from the docs.
 const INVOICE_DONE = ['complete', 'all_delivered'];
@@ -22,7 +24,9 @@ async function failSale(sale, shop, reason) {
   await notifyOwner(
     shop,
     `⚠️ Sale ${saleRef(sale.id)} paid ₹${sale.amount_inr} but the card purchase failed (${reason}). ` +
-      `Customer refund needed: ${sale.payer_address ?? 'payer address unknown'}.`,
+      (config.PAY_MODE === 'direct'
+        ? `Bitrefill refunds this to ${config.RECEIVE_ADDRESS}, then send it back to the customer.`
+        : `Customer refund needed: ${sale.payer_address ?? 'payer address unknown'}.`),
   );
 }
 

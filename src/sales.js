@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 import QRCode from 'qrcode';
-import { formatUnits, parseUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { BitrefillError, createInvoice, getInvoice } from './bitrefill.js';
 import { requestApproval } from './bot.js';
 import { ALLOWED_INR, quote } from './catalog.js';
@@ -53,7 +53,7 @@ function uniqueUnits(baseUnits) {
 }
 
 // Direct mode: the customer pays this invoice, so Bitrefill sets the address and the amount.
-// The docs show payment.price as a decimal coin amount, but have no usdc_base example to confirm it.
+// On usdc_base, payment.price is already in 6-decimal units on the live API: 1140000 means 1.14 USDC.
 async function directInvoiceFields(offer) {
   const item = offer.packageId ? { package_id: offer.packageId } : { value: offer.value };
   const invoice = await createInvoice({
@@ -64,8 +64,13 @@ async function directInvoiceFields(offer) {
   if (!invoice.payment?.address || !invoice.payment?.price) {
     throw new Error(`Bitrefill invoice ${invoice.id} has no payment details`);
   }
+  // A customer is about to be told to send this, so refuse anything that doesn't look like a sane price.
+  const maxUnits = config.AGENT_MAX_PER_PURCHASE_USD * 10 ** USDC_DECIMALS;
+  if (!Number.isInteger(invoice.payment.price) || invoice.payment.price > maxUnits) {
+    throw new Error(`Bitrefill invoice ${invoice.id} has an unexpected price: ${invoice.payment.price}`);
+  }
   return {
-    usdc_amount_units: parseUnits(String(invoice.payment.price), USDC_DECIMALS).toString(),
+    usdc_amount_units: String(invoice.payment.price),
     pay_address: invoice.payment.address,
     bitrefill_invoice_id: invoice.id,
     bitrefill_order_id: invoice.orders?.[0]?.id ?? null,
@@ -130,7 +135,9 @@ export async function amountOptions(shop) {
     if (check.ok === false) {
       options.push({ inr, enabled: false, reason: check.reason });
     } else {
-      options.push({ inr, enabled: true, approxUsdc: formatUnits(BigInt(offer.usdcUnits), USDC_DECIMALS) });
+      // Direct mode has no markup, so the customer pays about what the card costs.
+      const approxUsdc = isDirect() ? offer.usdCost : formatUnits(BigInt(offer.usdcUnits), USDC_DECIMALS);
+      options.push({ inr, enabled: true, approxUsdc });
     }
   }
   return options;
@@ -145,6 +152,13 @@ function eip681(address, units) {
   return `ethereum:${config.USDC_BASE_ADDRESS}@8453/transfer?address=${address}&uint256=${units}`;
 }
 
+// Direct mode doesn't see the customer's transaction, but each invoice has its own address.
+function explorerUrl(sale) {
+  if (sale.payer_tx_hash) return `https://basescan.org/tx/${sale.payer_tx_hash}`;
+  if (sale.pay_address && sale.paid_at) return `https://basescan.org/address/${sale.pay_address}`;
+  return undefined;
+}
+
 // What the customer's browser sees. Never add card fields or `error` here.
 export function saleView(sale) {
   const address = sale.pay_address ?? config.RECEIVE_ADDRESS;
@@ -157,10 +171,11 @@ export function saleView(sale) {
     eip681: eip681(address, sale.usdc_amount_units),
     expiresAt: isoTime(sale.expires_at),
     deliveredAt: isoTime(sale.delivered_at),
-    txHash: sale.payer_tx_hash ?? undefined,
+    explorerUrl: explorerUrl(sale),
     ref: saleRef(sale.id),
     invoiceId: sale.bitrefill_invoice_id ?? undefined,
-    devMode: config.DEV_MODE,
+    // Direct mode can't be simulated, because the customer really pays Bitrefill's invoice.
+    devMode: config.DEV_MODE && !isDirect(),
   };
 }
 

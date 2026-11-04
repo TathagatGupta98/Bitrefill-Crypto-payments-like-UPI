@@ -100,7 +100,8 @@
         cell(row, (Number(sale.usdc_amount_units) / 1e6).toString(), 'num');
         statusCell(row, sale.status);
         const tx = sale.payer_tx_hash;
-        linkCell(row, tx ? `${tx.slice(0, 10)}…` : null, tx ? `https://basescan.org/tx/${tx}` : null);
+        if (tx) linkCell(row, `${tx.slice(0, 10)}…`, `https://basescan.org/tx/${tx}`);
+        else linkCell(row, sale.paid_at ? 'Invoice address' : null, sale.paid_at && sale.pay_address ? `https://basescan.org/address/${sale.pay_address}` : null);
         cell(row, sale.bitrefill_invoice_id, 'mono');
         cell(row, sale.bitrefill_order_id, 'mono');
         const error = cell(row, sale.error, sale.error ? 'error-cell' : '');

@@ -1,10 +1,10 @@
-// Bitrefill response fields, taken from the docs. NOT yet checked against a live response:
-// replace this note with the real shapes after the first `npm run smoke`.
-//   GET /products/{id}  -> id, currency, in_stock, packages, range{min, max, step, price_rate}
-//     packages[]        -> package_id (guides) or id (OpenAPI), value, price (in the account's currency)
-//   POST /invoices      -> id, status, payment{method, address, currency, price, status}, orders[{id, status}]
-//   GET /orders/{id}    -> id, status, redemption_info (object in the guides, string in OpenAPI), error?
-//     redemption_info   -> code, link, pin, instructions, ... (fields vary per product)
+// Bitrefill response fields, checked against live responses on 4 Nov 2026. These differ from the docs.
+//   GET /accounts/balance -> balance, currency (the account's currency: "BTC" on the current account)
+//   GET /products/{id}    -> id, currency, in_stock, packages (no range on phonepe-india)
+//     packages[]          -> id ("phonepe-india<&>100"), value ("100"), amount, price (account currency; sats on BTC)
+//   POST /invoices        -> id, status ("not_delivered"), payment{method, currency, price, status, commission}, orders[{id, status}]
+//   GET /invoices/{id}    -> status all_delivered | all_error, and orders[] include redemption_info, so never log them
+//   GET /orders/{id}      -> id, status delivered | permanent_failure, redemption_info{code, instructions, other, extra_fields}
 import { getProduct } from './bitrefill.js';
 import { config } from './config.js';
 import { getCachedBalance } from './guardrails.js';

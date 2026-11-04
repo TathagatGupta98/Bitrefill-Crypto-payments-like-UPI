@@ -167,14 +167,15 @@ export function startExpirySweeper() {
 }
 
 // Direct mode has no chain watcher: Bitrefill sees the payment and moves the invoice on.
-// Anything past `unpaid` hands the sale to fulfill.js, which follows the existing invoice to the end.
+// A paid invoice goes to fulfill.js, which follows it to the end. Live invoices start as
+// not_delivered, so only payment.status shows whether the customer has paid.
 async function checkDirectPayments() {
   for (const sale of awaitingDirectSales()) {
     try {
       const invoice = await getInvoice(sale.bitrefill_invoice_id);
-      if (invoice.status === 'unpaid') continue;
+      if (invoice.payment?.status === 'unpaid') continue;
       if (transition(sale.id, 'awaiting_payment', 'paid', { paid_at: sqlTime() })) {
-        console.log(`Sale ${saleRef(sale.id)} paid directly: invoice is ${invoice.status}`);
+        console.log(`Sale ${saleRef(sale.id)} paid directly: payment is ${invoice.payment?.status}`);
         fulfillSale(sale.id).catch((err) => console.error(`Sale ${saleRef(sale.id)} failed: ${err.message}`));
       }
     } catch (err) {

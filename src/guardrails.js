@@ -17,7 +17,9 @@ export async function getCachedBalance() {
 }
 
 // Refuses if the balance can't be read or isn't in USD, because the floor is a USD amount.
+// Test cards are free, so test mode works whatever the balance is.
 async function balanceAllows(usdCost) {
+  if (config.BITREFILL_TEST_MODE) return true;
   try {
     const { balance, currency } = await getCachedBalance();
     if (currency !== 'USD') {

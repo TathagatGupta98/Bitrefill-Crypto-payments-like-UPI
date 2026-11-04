@@ -9,8 +9,10 @@ import { checkSale } from './guardrails.js';
 const POLL_MS = 5_000;
 const POLL_TIMEOUT_MS = 120_000;
 
-const INVOICE_FAILURES = ['blocked', 'denied', 'payment_error'];
-const ORDER_FAILURES = ['failed', 'refunded'];
+// The live API uses all_delivered, all_error and permanent_failure. The rest are from the docs.
+const INVOICE_DONE = ['complete', 'all_delivered'];
+const INVOICE_FAILURES = ['blocked', 'denied', 'payment_error', 'all_error'];
+const ORDER_FAILURES = ['failed', 'refunded', 'permanent_failure'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -106,7 +108,7 @@ async function checkPurchase(sale, shop, invoiceId) {
     await failSale(sale, shop, `Bitrefill invoice ${invoice.status}`);
     return true;
   }
-  if (invoice.status !== 'complete') return false;
+  if (!INVOICE_DONE.includes(invoice.status)) return false;
 
   const orderId = sale.bitrefill_order_id ?? invoice.orders?.[0]?.id;
   if (!orderId) {

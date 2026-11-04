@@ -17,8 +17,10 @@ const TEST_VALUE = 10;
 const POLL_MS = 5_000;
 const POLL_TIMEOUT_MS = 60_000;
 
-const INVOICE_FAILURES = ['blocked', 'denied', 'payment_error'];
-const ORDER_FAILURES = ['failed', 'refunded'];
+// The live API uses all_delivered, all_error and permanent_failure. The rest are from the docs.
+const INVOICE_DONE = ['complete', 'all_delivered'];
+const INVOICE_FAILURES = ['blocked', 'denied', 'payment_error', 'all_error'];
+const ORDER_FAILURES = ['failed', 'refunded', 'permanent_failure'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -36,12 +38,12 @@ function maskDeep(value) {
   return mask(value);
 }
 
-async function pollUntil(label, fetchStatus, doneStatus, failedStatuses) {
+async function pollUntil(label, fetchStatus, doneStatuses, failedStatuses) {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   for (;;) {
     const result = await fetchStatus();
     console.log(`  ${label} status: ${result.status}`);
-    if (result.status === doneStatus) return result;
+    if (doneStatuses.includes(result.status)) return result;
     if (failedStatuses.includes(result.status)) throw new Error(`${label} ended as ${result.status}`);
     if (Date.now() >= deadline) throw new Error(`${label} still ${result.status} after ${POLL_TIMEOUT_MS / 1000}s`);
     await sleep(POLL_MS);
@@ -80,11 +82,11 @@ async function buyTestCard() {
   console.log(`  invoice fields: ${Object.keys(created).join(', ')}`);
   console.log('  invoice payment:', JSON.stringify(created.payment ?? null));
 
-  const invoice = await pollUntil('invoice', () => getInvoice(created.id), 'complete', INVOICE_FAILURES);
+  const invoice = await pollUntil('invoice', () => getInvoice(created.id), INVOICE_DONE, INVOICE_FAILURES);
   const orderId = invoice.orders?.[0]?.id;
   if (!orderId) throw new Error(`invoice ${invoice.id} has no orders`);
 
-  const order = await pollUntil('order', () => getOrder(orderId), 'delivered', ORDER_FAILURES);
+  const order = await pollUntil('order', () => getOrder(orderId), ['delivered'], ORDER_FAILURES);
   console.log(`  order fields: ${Object.keys(order).join(', ')}`);
   console.log('  redemption_info:', JSON.stringify(maskDeep(order.redemption_info)));
 }

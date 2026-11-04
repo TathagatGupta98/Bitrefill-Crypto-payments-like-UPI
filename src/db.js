@@ -71,6 +71,23 @@ const spendToday = db.prepare(`
   WHERE id IS NOT ? AND status IN ${COUNTED_STATUSES} AND ${IS_TODAY_IST}
 `);
 
+const openUnits = db.prepare(`
+  SELECT usdc_amount_units FROM sales WHERE status IN ('awaiting_approval', 'awaiting_payment')
+`);
+const payableSale = db.prepare(`
+  SELECT * FROM sales WHERE status = 'awaiting_payment' AND usdc_amount_units = ? AND expires_at > ?
+`);
+const expireSales = db.prepare(`
+  UPDATE sales SET status = 'expired'
+  WHERE status IN ('awaiting_approval', 'awaiting_payment') AND expires_at <= ?
+`);
+const cursorRead = db.prepare('SELECT last_block FROM chain_cursor WHERE id = 1');
+const cursorWrite = db.prepare(`
+  INSERT INTO chain_cursor (id, last_block) VALUES (1, ?)
+  ON CONFLICT (id) DO UPDATE SET last_block = excluded.last_block
+`);
+const seenLogInsert = db.prepare('INSERT OR IGNORE INTO seen_logs (tx_hash, log_index) VALUES (?, ?)');
+
 // Same format as SQLite's datetime('now'), so stored timestamps compare correctly.
 export const sqlTime = (date = new Date()) => date.toISOString().slice(0, 19).replace('T', ' ');
 export const saleRef = (id) => `SIK-${id.slice(0, 6).toUpperCase()}`;
@@ -95,3 +112,12 @@ export function transition(id, from, to, fields = {}) {
 // `excludeSaleId` stops a sale counting against itself when it is re-checked before buying.
 export const salesToday = (shopId, excludeSaleId = null) => shopToday.get(shopId, excludeSaleId);
 export const spendTodayUsd = (excludeSaleId = null) => spendToday.get(excludeSaleId).total;
+
+export const openSaleUnits = () => openUnits.all().map((row) => row.usdc_amount_units);
+export const findPayableSale = (units) => payableSale.get(units, sqlTime());
+export const expireOldSales = () => expireSales.run(sqlTime()).changes;
+
+export const getChainCursor = () => cursorRead.get()?.last_block ?? null;
+export const setChainCursor = (block) => cursorWrite.run(block);
+// Returns false if this log was already handled.
+export const markLogSeen = (txHash, logIndex) => seenLogInsert.run(txHash, logIndex).changes === 1;

@@ -27,7 +27,7 @@ export const config = {
   LLM_BASE_URL: str('LLM_BASE_URL', 'https://api.groq.com/openai/v1'),
   LLM_API_KEY: str('LLM_API_KEY'),
   LLM_MODEL: str('LLM_MODEL'),
-  BASE_RPC_URL: str('BASE_RPC_URL', 'https://mainnet.base.org'),
+  BASE_RPC_URL: str('BASE_RPC_URL', 'https://base-rpc.publicnode.com'),
   RECEIVE_ADDRESS: str('RECEIVE_ADDRESS'),
   USDC_BASE_ADDRESS: str('USDC_BASE_ADDRESS', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
   INR_PER_USD: num('INR_PER_USD', 88),

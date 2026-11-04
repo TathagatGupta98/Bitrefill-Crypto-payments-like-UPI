@@ -1,9 +1,45 @@
-import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express, { Router } from 'express';
+import QRCode from 'qrcode';
 import { config } from './config.js';
-import { getSale, saleRef, sqlTime, transition } from './db.js';
+import { getSale, getShopBySlug, saleRef, sqlTime, transition } from './db.js';
 import { fulfillSale } from './fulfill.js';
+import { amountOptions, createSale, saleView } from './sales.js';
+
+const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 export const routes = Router();
+
+routes.use(express.static(PUBLIC_DIR, { index: false }));
+
+routes.get('/pay/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'pay.html')));
+
+routes.get('/api/shops/:slug', async (req, res) => {
+  const shop = getShopBySlug(req.params.slug);
+  if (!shop) return res.status(404).json({ reason: 'shop not found' });
+  res.json({ name: shop.name, verified: true, amounts: await amountOptions(shop) });
+});
+
+routes.post('/api/sales', async (req, res) => {
+  const { slug, amountInr } = req.body ?? {};
+  const { sale, reason } = await createSale(slug, amountInr);
+  if (!sale) return res.status(400).json({ reason });
+  res.status(201).json(saleView(getSale(sale.id)));
+});
+
+routes.get('/api/sales/:id', (req, res) => {
+  const sale = getSale(req.params.id);
+  if (!sale) return res.status(404).json({ reason: 'sale not found' });
+  res.json(saleView(sale));
+});
+
+routes.get('/api/sales/:id/qr.png', async (req, res) => {
+  const sale = getSale(req.params.id);
+  if (!sale) return res.status(404).json({ reason: 'sale not found' });
+  const png = await QRCode.toBuffer(saleView(sale).eip681, { width: 480, margin: 1 });
+  res.type('png').send(png);
+});
 
 if (config.DEV_MODE) {
   routes.post('/api/dev/sales/:id/mark-paid', (req, res) => {

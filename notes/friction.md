@@ -8,3 +8,4 @@
 - `Retry-After` isn't documented; the rate-limit guide says to wait for `X-RateLimit-Reset`.
 - `GET /invoices/{id}` allows 60 calls per 10 minutes, so polling every 2 s can use the whole limit on one sale.
 - Error bodies vary by endpoint: `{ error }` on search, `{ message, error_code }` on invoices.
+- Not Bitrefill: the public `mainnet.base.org` RPC returned 429 on every `eth_getLogs` (other calls worked), so the watcher now defaults to `base-rpc.publicnode.com`.

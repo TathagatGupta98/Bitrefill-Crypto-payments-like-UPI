@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pay with Sikka</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="shop">
+      <h1 id="shop-name">Loading…</h1>
+      <p id="shop-verified" class="verified" hidden>✓ Verified Sikka merchant</p>
+    </header>
+
+    <section id="screen-select" hidden>
+      <h2>Choose amount</h2>
+      <div id="chips" class="chips"></div>
+      <p id="chip-note" class="note"></p>
+
+      <h2>Pay with</h2>
+      <div class="rail rail-on">
+        <span>USDC on Base</span>
+        <span>✓</span>
+      </div>
+      <div class="rail rail-off">
+        <span>Lightning</span>
+        <span>soon</span>
+      </div>
+
+      <p id="select-error" class="error" hidden></p>
+      <button id="pay-button" class="primary" disabled>Choose an amount</button>
+    </section>
+
+    <section id="screen-pay" hidden>
+      <p class="send-label">Send exactly</p>
+      <p class="send-amount"><span id="pay-usdc"></span> USDC</p>
+      <p class="send-label">on Base, for ₹<span id="pay-inr"></span></p>
+
+      <p class="warning">Send the exact amount — it identifies your payment.</p>
+
+      <a id="open-wallet" class="primary">Open wallet</a>
+
+      <button id="copy-amount" class="copy">
+        <span class="copy-label">Amount</span>
+        <span id="copy-amount-value" class="copy-value"></span>
+        <span class="copy-action">Copy</span>
+      </button>
+      <button id="copy-address" class="copy">
+        <span class="copy-label">Address</span>
+        <span id="copy-address-value" class="copy-value"></span>
+        <span class="copy-action">Copy</span>
+      </button>
+
+      <img id="pay-qr" class="qr" alt="QR code to pay from another device" width="240" height="240">
+
+      <p class="note">Time left: <strong id="countdown"></strong></p>
+      <p class="note">Keep this page open. It updates when your payment arrives.</p>
+      <button id="simulate" class="link" hidden>Simulate payment</button>
+    </section>
+
+    <section id="screen-wait" class="wait" hidden>
+      <div class="spinner"></div>
+      <p id="wait-text"></p>
+      <p id="wait-ref" class="note"></p>
+    </section>
+  </main>
+
+  <section id="screen-result" class="result" hidden>
+    <div id="result-icon" class="result-icon"></div>
+    <h1 id="result-title"></h1>
+    <p id="result-text"></p>
+    <p id="result-ref" class="result-ref"></p>
+    <p id="result-time" class="result-ref"></p>
+    <a id="result-again" class="result-again">Make another payment</a>
+  </section>
+
+  <script src="/pay.js"></script>
+</body>
+</html>

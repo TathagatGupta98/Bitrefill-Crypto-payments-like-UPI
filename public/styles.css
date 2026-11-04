@@ -1307,3 +1307,175 @@ td.error-cell {
     transform: translateY(-8px);
   }
 }
+
+/* Language switch */
+
+.lang-switch {
+  padding: 5px 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.soundbox-top {
+  gap: 8px;
+}
+
+.hit-line-en {
+  margin-top: 2px;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+/* Sealed card page */
+
+.card-page {
+  padding-bottom: 40px;
+}
+
+.sealed-card {
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.sealed-card h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.seal-badge {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--brand-tint);
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.seal-open {
+  margin: 12px 0;
+  background: var(--marigold-tint);
+  color: var(--marigold-ink);
+}
+
+.pin-label {
+  display: block;
+  margin: 18px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pin-input {
+  display: block;
+  width: 180px;
+  margin: 0 auto;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 28px;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.pin-input:focus {
+  border-color: var(--brand);
+  outline: none;
+}
+
+#pin-form .primary {
+  margin-top: 16px;
+}
+
+.secret-row {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: left;
+}
+
+.secret-value {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.secret-copy {
+  padding: 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.card-link {
+  margin-top: 12px;
+}
+
+.claim-step {
+  margin: 0 0 6px;
+}
+
+.claim-button {
+  margin-top: 16px;
+}
+
+/* Admin activity log */
+
+.log-button {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.log-row td {
+  background: var(--background);
+  white-space: normal;
+}
+
+.activity {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.activity li {
+  display: grid;
+  grid-template-columns: 150px 170px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.activity time {
+  color: var(--muted);
+}
+
+.activity strong {
+  font-weight: 600;
+}
+
+/* Devanagari has taller marks, so headings need more room than English. */
+:lang(hi) h1,
+:lang(hi) h2,
+:lang(hi) h3 {
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+:lang(hi) body {
+  line-height: 1.6;
+}

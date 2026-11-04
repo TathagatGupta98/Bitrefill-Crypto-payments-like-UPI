@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Bot, InlineKeyboard, InputFile, Keyboard } from 'grammy';
 import { customAlphabet } from 'nanoid';
 import { agentEnabled, changeCaps, getSalesSummary, listRecentSales, runAgent } from './agent.js';
+import { issueRevealLink } from './cards.js';
 import { config } from './config.js';
 import {
   deleteOnboarding,
@@ -10,32 +11,49 @@ import {
   getSale,
   getShopByChat,
   insertShop,
+  logEvent,
   saleRef,
   saveOnboarding,
-  sqlTime,
+  setCardMessage,
+  setShopPin,
   transition,
+  unclaimedSales,
 } from './db.js';
 import { retrySale } from './fulfill.js';
-import { approveSale, shopPayUrl, shopQrPng } from './sales.js';
+import { approveSale, shopPayUrl, shopQrPng, soundboxUrl } from './sales.js';
+import { hashPin, newSecret } from './vault.js';
 
-const MAX_INSTRUCTIONS_CHARS = 1000;
 const MAX_NAME_CHARS = 60;
 const MAX_MESSAGE_CHARS = 4000;
 const PHONE_PATTERN = /^\+?[\d\s-]{10,16}$/;
-const HELP_TEXT = [
-  'Yeh commands use kijiye:',
-  '/today – aaj ki kamai',
-  '/sales – recent sales',
-  '/caps <per_sale> <daily> – limits badliye, e.g. /caps 500 2000',
-].join('\n');
-
+const WEAK_PINS = ['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321'];
 const WELCOME_IMAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'mascot', 'sikku-welcome.png');
-const WELCOME_TEXT = 'Namaste! 🙏 Main Sikku hoon. Sikka se aap crypto payments le sakte hain, bina kisi wallet ke.\n\n3 chhote sawaal, phir aapka QR ready.';
+
+// There's no language switch in a chat, so owners read Hindi and judges read English in the same message.
+const both = (hindi, english) => `${hindi}\n${english}`;
+
+const WELCOME_TEXT = both(
+  'नमस्ते! 🙏 मैं सिक्कू हूँ। सिक्का से आप बिना किसी वॉलेट के क्रिप्टो पेमेंट ले सकते हैं।\n4 छोटे सवाल, फिर आपका QR तैयार।',
+  "\nNamaste! I'm Sikku. With Sikka you can accept crypto without a wallet.\n4 short questions, then your QR is ready.",
+);
+const START_FIRST = both('शुरू करने के लिए /start भेजिए।', 'Send /start to begin.');
+const HELP_TEXT = [
+  'आप मुझसे सीधे पूछ सकते हैं, जैसे "आज कितना आया?"',
+  'You can just ask me, like "how much came in today?"',
+  '',
+  '/today – आज की बिक्री / Today\'s sales',
+  '/sales – हाल की बिक्री / Recent sales',
+  '/cards – बिना क्लेम वाले कार्ड / Unclaimed cards',
+  '/caps <per_sale> <daily> – लिमिट बदलें / Change limits',
+  '/setpin – PIN बदलें / Change your PIN',
+].join('\n');
 const COMMANDS = [
-  { command: 'start', description: 'Shop setup, or get your QR and links again' },
+  { command: 'start', description: 'Set up your shop, or get your QR again' },
   { command: 'today', description: "Today's sales" },
   { command: 'sales', description: 'Recent sales' },
+  { command: 'cards', description: 'Get links for unclaimed cards' },
   { command: 'caps', description: 'Change limits: /caps 500 2000' },
+  { command: 'setpin', description: 'Change your card PIN' },
   { command: 'help', description: 'What Sikku can do' },
 ];
 
@@ -46,30 +64,41 @@ let botUsername = null;
 
 export const getBotUsername = () => botUsername;
 
-const escapeHtml = (text) =>
-  String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-
 const rupees = (inr) => `₹${inr.toLocaleString('en-IN')}`;
 
-function cardMessage(sale) {
-  const lines = [`✅ Crypto se ₹${sale.amount_inr} prapt hue!`, '', 'PhonePe gift card:'];
-  if (sale.card_code) lines.push(`Code: <code>${escapeHtml(sale.card_code)}</code>`);
-  if (sale.card_pin) lines.push(`PIN: <code>${escapeHtml(sale.card_pin)}</code>`);
-  if (sale.card_link) lines.push(`Link: ${escapeHtml(sale.card_link)}`);
-  if (sale.card_instructions) {
-    lines.push(escapeHtml(sale.card_instructions.slice(0, MAX_INSTRUCTIONS_CHARS)));
-  }
-  lines.push('', 'Claim it: PhonePe → Gift Cards → Add.', `[Invoice: ${escapeHtml(sale.bitrefill_invoice_id)}]`);
-  return lines.join('\n');
+// The code is deliberately not in this message: Telegram keeps bot chats on its servers.
+function sealedCardMessage(sale) {
+  return [
+    `✅ क्रिप्टो से ${rupees(sale.amount_inr)} प्राप्त हुए!`,
+    `${rupees(sale.amount_inr)} received in crypto!`,
+    '',
+    '🔒 आपका PhonePe गिफ्ट कार्ड सील है। कोड इस चैट में नहीं है।',
+    'Your PhonePe gift card is sealed. The code is not in this chat.',
+    '',
+    `[Ref: ${saleRef(sale.id)} · Invoice: ${sale.bitrefill_invoice_id}]`,
+  ].join('\n');
 }
 
 export async function sendCard(shop, sale) {
-  await bot.api.sendMessage(shop.telegram_chat_id, cardMessage(sale), {
-    parse_mode: 'HTML',
-    reply_markup: new InlineKeyboard()
-      .text('📋 Claimed ✅', `claim:${sale.id}`)
-      .url('Open PhonePe', 'https://www.phonepe.com/'),
+  const message = await bot.api.sendMessage(shop.telegram_chat_id, sealedCardMessage(sale), {
+    reply_markup: new InlineKeyboard().url('🔓 कार्ड खोलें / Reveal card', issueRevealLink(sale)),
   });
+  setCardMessage(sale.id, message.message_id);
+  logEvent(sale.id, 'owner_notified', 'Owner told on Telegram, with no code in the message');
+}
+
+export async function markCardClaimed(shop, sale) {
+  const { card_message_id: messageId, bitrefill_invoice_id: invoiceId } = getSale(sale.id);
+  if (!messageId) return;
+  try {
+    await bot.api.editMessageText(
+      shop.telegram_chat_id,
+      messageId,
+      `✅ ${rupees(sale.amount_inr)} क्लेम हो गया, कोड मिटा दिया गया।\n${rupees(sale.amount_inr)} claimed, code deleted.\n\n[Ref: ${saleRef(sale.id)} · Invoice: ${invoiceId}]`,
+    );
+  } catch (err) {
+    console.error(`Could not update the card message for ${saleRef(sale.id)}: ${err.message}`);
+  }
 }
 
 export async function notifyOwner(shop, text) {
@@ -85,8 +114,15 @@ export async function requestApproval(shop, sale) {
   try {
     await bot.api.sendMessage(
       shop.telegram_chat_id,
-      `Customer wants to pay ${rupees(sale.amount_inr)} (over your ${rupees(shop.per_sale_cap_inr)} limit). Approve?`,
-      { reply_markup: new InlineKeyboard().text('✅ Approve', `approve:${sale.id}`).text('❌ Reject', `reject:${sale.id}`) },
+      both(
+        `ग्राहक ${rupees(sale.amount_inr)} देना चाहता है, जो आपकी ${rupees(shop.per_sale_cap_inr)} लिमिट से ज़्यादा है। मंज़ूरी दें?`,
+        `Customer wants to pay ${rupees(sale.amount_inr)} (over your ${rupees(shop.per_sale_cap_inr)} limit). Approve?`,
+      ),
+      {
+        reply_markup: new InlineKeyboard()
+          .text('✅ मंज़ूर / Approve', `approve:${sale.id}`)
+          .text('❌ मना / Reject', `reject:${sale.id}`),
+      },
     );
   } catch (err) {
     console.error(`Could not ask shop ${shop.slug} for approval: ${err.message}`);
@@ -98,25 +134,6 @@ function findOwnSale(chatId, saleId) {
   const shop = getShopByChat(chatId);
   const sale = saleId ? getSale(saleId) : null;
   return shop && sale?.shop_id === shop.id ? { shop, sale } : {};
-}
-
-async function handleClaim(ctx) {
-  const { sale } = findOwnSale(ctx.chat?.id, ctx.match[1]);
-  if (!sale) {
-    await ctx.answerCallbackQuery({ text: 'Sale not found' });
-    return;
-  }
-
-  // Instructions are wiped too, because they can contain the code.
-  const claimed = transition(sale.id, 'delivered', 'claimed', {
-    claimed_at: sqlTime(),
-    card_code: null,
-    card_pin: null,
-    card_link: null,
-    card_instructions: null,
-  });
-  await ctx.answerCallbackQuery(claimed ? { text: 'Claimed ✓' } : { text: 'Already claimed' });
-  if (claimed) await ctx.editMessageText('Claimed ✓ (code removed)');
 }
 
 async function handleApprove(ctx) {
@@ -133,14 +150,20 @@ async function handleApprove(ctx) {
     console.error(`Could not approve ${saleRef(sale.id)}: ${err.message}`);
   }
   await ctx.answerCallbackQuery({ text: approved ? 'Approved ✓' : 'Could not approve this sale' });
-  if (approved) await ctx.editMessageText(`✅ Approved ${rupees(sale.amount_inr)} (${saleRef(sale.id)})`);
+  if (approved) {
+    logEvent(sale.id, 'owner_approved', 'Owner approved a sale over the per-sale limit');
+    await ctx.editMessageText(both(`✅ ${rupees(sale.amount_inr)} मंज़ूर (${saleRef(sale.id)})`, `Approved ${rupees(sale.amount_inr)}`));
+  }
 }
 
 async function handleReject(ctx) {
   const { sale } = findOwnSale(ctx.chat?.id, ctx.match[1]);
   const rejected = sale ? transition(sale.id, 'awaiting_approval', 'rejected') : false;
   await ctx.answerCallbackQuery({ text: rejected ? 'Rejected' : 'This sale can no longer be rejected' });
-  if (rejected) await ctx.editMessageText(`❌ Rejected ${rupees(sale.amount_inr)} (${saleRef(sale.id)})`);
+  if (rejected) {
+    logEvent(sale.id, 'owner_rejected', 'Owner rejected a sale over the per-sale limit');
+    await ctx.editMessageText(both(`❌ ${rupees(sale.amount_inr)} मना (${saleRef(sale.id)})`, `Rejected ${rupees(sale.amount_inr)}`));
+  }
 }
 
 async function handleRetry(ctx) {
@@ -155,31 +178,47 @@ async function handleRetry(ctx) {
 
 async function sendShopKit(ctx, shop) {
   await ctx.replyWithPhoto(new InputFile(await shopQrPng(shop), 'sikka-qr.png'), {
-    caption: `${shop.name} ka payment QR. Customer ise phone camera se scan kare.\n${shopPayUrl(shop)}`,
+    caption: both(`${shop.name} का पेमेंट QR। ग्राहक इसे फ़ोन कैमरे से स्कैन करे।`, `${shop.name}'s payment QR. Customers scan it with their phone camera.`),
   });
   await ctx.reply(
     [
-      '✅ Aapki shop ready hai!',
+      '✅ आपकी दुकान तैयार है!',
+      'Your shop is ready!',
       '',
-      '1. 🖨 Standee print karke counter par rakhiye',
-      '2. 🔊 Soundbox counter ke paas wale phone par kholiye',
-      '3. 🧪 Khud ek baar pay page dekh lijiye',
+      '1. 🖨 स्टैंडी प्रिंट करके काउंटर पर रखिए / Print the standee for your counter',
+      '2. 🔊 साउंडबॉक्स काउंटर के पास वाले फ़ोन पर खोलिए / Open the soundbox on a phone nearby',
+      '3. 🧪 एक बार पे पेज देख लीजिए / Check your pay page once',
       '',
+      `लिमिट: बिना मंज़ूरी ${rupees(shop.per_sale_cap_inr)} प्रति बिक्री, ${rupees(shop.daily_cap_inr)} प्रति दिन।`,
       `Limits: ${rupees(shop.per_sale_cap_inr)} per sale without approval, ${rupees(shop.daily_cap_inr)} per day. Change anytime, just ask me.`,
     ].join('\n'),
     {
       reply_markup: new InlineKeyboard()
-        .url('🖨 Standee', `${config.PUBLIC_URL}/standee/${shop.slug}`)
-        .url('🔊 Soundbox', `${config.PUBLIC_URL}/soundbox/${shop.slug}`)
+        .url('🖨 स्टैंडी / Standee', `${config.PUBLIC_URL}/standee/${shop.slug}`)
+        .url('🔊 साउंडबॉक्स / Soundbox', soundboxUrl(shop))
         .row()
-        .url('🧪 Pay page', shopPayUrl(shop)),
+        .url('🧪 पे पेज / Pay page', shopPayUrl(shop)),
     },
+  );
+}
+
+async function askForPin(ctx, prefix = '') {
+  await ctx.reply(
+    `${prefix}${both(
+      '4 अंकों का PIN चुनिए। इसी से आपके गिफ्ट कार्ड खुलेंगे। इसे किसी को न बताएँ।',
+      'Choose a 4-digit PIN. It opens your gift cards. Keep it private.',
+    )}`,
   );
 }
 
 async function handleStart(ctx) {
   const shop = getShopByChat(ctx.chat.id);
   if (shop) {
+    if (!shop.pin_hash) {
+      saveOnboarding({ chat_id: ctx.chat.id, step: 'pin', name: shop.name, phone: null });
+      await askForPin(ctx);
+      return;
+    }
     await sendShopKit(ctx, shop);
     return;
   }
@@ -190,33 +229,55 @@ async function handleStart(ctx) {
     console.error(`Could not send the welcome image: ${err.message}`);
     await ctx.reply(WELCOME_TEXT);
   }
-  await ctx.reply('Step 1 of 3: Shop ka naam kya hai?');
+  await ctx.reply(both('स्टेप 1/4: आपकी दुकान का नाम क्या है?', 'Step 1 of 4: What is your shop called?'));
 }
 
-const payoutKeyboard = () => new InlineKeyboard().text('PhonePe balance ✓', 'payout:phonepe');
-const phoneKeyboard = () => new Keyboard().requestContact('📱 Share my number').resized().oneTime();
+const payoutKeyboard = () => new InlineKeyboard().text('PhonePe बैलेंस / PhonePe balance ✓', 'payout:phonepe');
+const phoneKeyboard = () => new Keyboard().requestContact('📱 मेरा नंबर भेजें / Share my number').resized().oneTime();
+const PAYOUT_QUESTION = both('स्टेप 3/4: पैसे कहाँ आएँ?', 'Step 3 of 4: How would you like to be paid?');
 
 async function askPayout(ctx) {
-  await ctx.reply('Number mil gaya ✓', { reply_markup: { remove_keyboard: true } });
-  await ctx.reply('Step 3 of 3: Paise kahan aaye?', { reply_markup: payoutKeyboard() });
+  await ctx.reply(both('नंबर मिल गया ✓', 'Got your number ✓'), { reply_markup: { remove_keyboard: true } });
+  await ctx.reply(PAYOUT_QUESTION, { reply_markup: payoutKeyboard() });
+}
+
+async function acceptPin(ctx, row, text) {
+  if (!/^\d{4}$/.test(text) || WEAK_PINS.includes(text)) {
+    await ctx.reply(both('यह PIN नहीं चलेगा। 4 अंक चुनिए, जो 1234 या 0000 जैसे आसान न हों।', "That PIN won't work. Choose 4 digits that aren't easy to guess, like 1234 or 0000."));
+    return;
+  }
+  const shop = getShopByChat(ctx.chat.id);
+  setShopPin(shop.id, hashPin(text));
+  deleteOnboarding(ctx.chat.id);
+  // Best effort, so the PIN doesn't stay in the chat history.
+  await ctx.deleteMessage().catch(() => {});
+  await ctx.reply(both('🔒 PIN सेव हो गया। आपका संदेश हटा दिया गया।', '🔒 PIN saved, and your message was removed.'));
+  if (row.name) await sendShopKit(ctx, getShopByChat(ctx.chat.id));
 }
 
 async function handleOnboardingText(ctx, row) {
   const text = ctx.message.text.trim();
 
+  if (row.step === 'pin') {
+    await acceptPin(ctx, row, text);
+    return;
+  }
+
   if (row.step === 'name') {
     if (!text || text.length > MAX_NAME_CHARS) {
-      await ctx.reply(`Shop ka naam ${MAX_NAME_CHARS} characters tak rakhiye. Shop ka naam kya hai?`);
+      await ctx.reply(both(`दुकान का नाम ${MAX_NAME_CHARS} अक्षरों तक रखिए।`, `Please keep the shop name under ${MAX_NAME_CHARS} characters.`));
       return;
     }
     saveOnboarding({ ...row, step: 'phone', name: text });
-    await ctx.reply('Step 2 of 3: Phone number? Button dabaiye ya type kijiye.', { reply_markup: phoneKeyboard() });
+    await ctx.reply(both('स्टेप 2/4: फ़ोन नंबर? बटन दबाइए या टाइप कीजिए।', 'Step 2 of 4: Phone number? Tap the button or type it.'), {
+      reply_markup: phoneKeyboard(),
+    });
     return;
   }
 
   if (row.step === 'phone') {
     if (!PHONE_PATTERN.test(text)) {
-      await ctx.reply('Yeh number sahi nahi lag raha. Phone number dobara bhejiye, e.g. 9876543210');
+      await ctx.reply(both('यह नंबर सही नहीं लग रहा। दोबारा भेजिए, जैसे 9876543210', "That number doesn't look right. Please send it again, like 9876543210"));
       return;
     }
     saveOnboarding({ ...row, step: 'payout', phone: text });
@@ -224,7 +285,7 @@ async function handleOnboardingText(ctx, row) {
     return;
   }
 
-  await ctx.reply('Step 3 of 3: Paise kahan aaye?', { reply_markup: payoutKeyboard() });
+  await ctx.reply(PAYOUT_QUESTION, { reply_markup: payoutKeyboard() });
 }
 
 // Telegram lets people share any contact, so only their own number counts.
@@ -233,7 +294,7 @@ async function handleContact(ctx) {
   if (row?.step !== 'phone') return;
   const { contact } = ctx.message;
   if (contact.user_id !== ctx.from.id) {
-    await ctx.reply('Apna hi number share kijiye, ya type kar dijiye.');
+    await ctx.reply(both('अपना ही नंबर भेजिए, या टाइप कर दीजिए।', 'Please share your own number, or type it.'));
     return;
   }
   saveOnboarding({ ...row, step: 'payout', phone: contact.phone_number });
@@ -256,7 +317,7 @@ async function handlePayout(ctx) {
     return;
   }
 
-  const shop = insertShop({
+  insertShop({
     slug: slugFor(row.name),
     name: row.name,
     phone: row.phone,
@@ -264,15 +325,16 @@ async function handlePayout(ctx) {
     payout: 'phonepe',
     per_sale_cap_inr: config.DEFAULT_PER_SALE_CAP_INR,
     daily_cap_inr: config.DEFAULT_DAILY_CAP_INR,
+    soundbox_key: newSecret(),
   });
-  deleteOnboarding(chatId);
+  saveOnboarding({ ...row, step: 'pin', phone: null });
 
-  await ctx.answerCallbackQuery({ text: 'Shop ready ✓' });
-  await ctx.editMessageText('Payout: PhonePe balance ✓');
-  await sendShopKit(ctx, shop);
+  await ctx.answerCallbackQuery({ text: 'PhonePe ✓' });
+  await ctx.editMessageText(both('पेमेंट: PhonePe बैलेंस ✓', 'Payout: PhonePe balance ✓'));
+  await askForPin(ctx, 'स्टेप 4/4 · Step 4 of 4\n');
 }
 
-// Runs in the background, because a slow LLM would otherwise hold up the Approve and Claimed buttons.
+// Runs in the background, because a slow LLM would otherwise hold up the Approve and Reject buttons.
 async function answerWithAgent(ctx, shop) {
   try {
     if (!agentEnabled()) throw new Error('LLM_API_KEY or LLM_MODEL is not set');
@@ -288,36 +350,44 @@ async function answerWithAgent(ctx, shop) {
 async function handleText(ctx) {
   const shop = getShopByChat(ctx.chat.id);
   if (ctx.message.text.startsWith('/')) {
-    await ctx.reply(shop ? HELP_TEXT : 'Shuru karne ke liye /start bhejiye.');
+    await ctx.reply(shop ? HELP_TEXT : START_FIRST);
+    return;
+  }
+  const row = getOnboarding(ctx.chat.id);
+  if (row) {
+    await handleOnboardingText(ctx, row);
     return;
   }
   if (shop) {
     answerWithAgent(ctx, shop).catch((err) => console.error(`Could not reply: ${err.message}`));
     return;
   }
-  const row = getOnboarding(ctx.chat.id);
-  if (row) await handleOnboardingText(ctx, row);
-  else await ctx.reply('Shuru karne ke liye /start bhejiye.');
+  await ctx.reply(START_FIRST);
 }
 
 // Commands for owners only, so a chat without a shop is pointed to /start.
 function ownerCommand(handler) {
   return async (ctx) => {
     const shop = getShopByChat(ctx.chat.id);
-    if (!shop) await ctx.reply('Shuru karne ke liye /start bhejiye.');
+    if (!shop) await ctx.reply(START_FIRST);
     else await handler(ctx, shop);
   };
 }
 
 async function handleToday(ctx, shop) {
   const { count, total_inr: total, unclaimed_cards: unclaimed } = getSalesSummary(shop, 'today');
-  await ctx.reply(`Aaj: ${count} sale(s), ${rupees(total)}. Unclaimed cards: ${unclaimed}.`);
+  await ctx.reply(
+    both(
+      `आज: ${count} बिक्री, ${rupees(total)}। बिना क्लेम वाले कार्ड: ${unclaimed}।`,
+      `Today: ${count} sale(s), ${rupees(total)}. Unclaimed cards: ${unclaimed}.`,
+    ),
+  );
 }
 
 async function handleSales(ctx, shop) {
   const sales = listRecentSales(shop);
   if (!sales.length) {
-    await ctx.reply('Abhi tak koi sale nahi.');
+    await ctx.reply(both('अभी तक कोई बिक्री नहीं।', 'No sales yet.'));
     return;
   }
   await ctx.reply(sales.map((sale) => `${sale.ref}  ${rupees(sale.amount_inr)}  ${sale.status}`).join('\n'));
@@ -331,19 +401,42 @@ async function handleCaps(ctx, shop) {
   }
   const result = changeCaps(shop.id, { per_sale_inr: perSale, daily_inr: daily });
   await ctx.reply(
-    result.error ?? `Limits updated: ${rupees(result.per_sale_inr)} per sale, ${rupees(result.daily_inr)} per day.`,
+    result.error ??
+      both(
+        `लिमिट बदल गई: ${rupees(result.per_sale_inr)} प्रति बिक्री, ${rupees(result.daily_inr)} प्रति दिन।`,
+        `Limits updated: ${rupees(result.per_sale_inr)} per sale, ${rupees(result.daily_inr)} per day.`,
+      ),
   );
 }
+
+async function handleCards(ctx, shop) {
+  const sales = unclaimedSales(shop.id);
+  if (!sales.length) {
+    await ctx.reply(both('कोई बिना क्लेम वाला कार्ड नहीं है।', 'You have no unclaimed cards.'));
+    return;
+  }
+  for (const sale of sales) await sendCard(shop, sale);
+}
+
+async function handleSetPin(ctx, shop) {
+  saveOnboarding({ chat_id: ctx.chat.id, step: 'pin', name: null, phone: null });
+  await askForPin(ctx);
+}
+
+const handleHelp = (ctx) => ctx.reply(HELP_TEXT);
 
 export function startBot() {
   bot = new Bot(config.TELEGRAM_BOT_TOKEN);
   bot.command('start', handleStart);
+  bot.command('help', handleHelp);
   bot.command('retry', handleRetry);
-  bot.command('help', (ctx) => ctx.reply(`Main Sikku hoon! Aaj ki kamai ya limits ke baare mein seedha pooch sakte hain.\n\n${HELP_TEXT}`));
   bot.command('today', ownerCommand(handleToday));
   bot.command('sales', ownerCommand(handleSales));
   bot.command('caps', ownerCommand(handleCaps));
-  bot.callbackQuery(/^claim:(.+)$/, handleClaim);
+  bot.command('cards', ownerCommand(handleCards));
+  bot.command('setpin', ownerCommand(handleSetPin));
+  // Buttons on messages sent before cards were sealed.
+  bot.callbackQuery(/^claim:/, (ctx) => ctx.answerCallbackQuery({ text: 'Use /cards for a new link' }));
   bot.callbackQuery(/^approve:(.+)$/, handleApprove);
   bot.callbackQuery(/^reject:(.+)$/, handleReject);
   bot.callbackQuery('payout:phonepe', handlePayout);

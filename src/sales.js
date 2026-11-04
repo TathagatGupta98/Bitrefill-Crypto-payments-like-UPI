@@ -10,13 +10,17 @@ import {
   expireOldSales,
   getShopBySlug,
   insertSale,
+  logEvent,
   openSaleUnits,
   saleRef,
+  setSoundboxKey,
+  shopsWithoutSoundboxKey,
   sqlTime,
   transition,
 } from './db.js';
 import { fulfillSale } from './fulfill.js';
 import { checkSale } from './guardrails.js';
+import { newSecret } from './vault.js';
 
 const USDC_DECIMALS = 6;
 const TAIL_STEP_UNITS = 100;
@@ -115,7 +119,12 @@ export async function createSale(slug, amountInr) {
   }
 
   insertSale(sale);
-  if (check.needsApproval) await requestApproval(shop, sale);
+  logEvent(sale.id, 'limits_checked', 'Daily limit, purchase limit and agent-wide limit: passed');
+  if (sale.bitrefill_invoice_id) logEvent(sale.id, 'invoice_created', `Bitrefill invoice ${sale.bitrefill_invoice_id}, customer pays it directly`);
+  if (check.needsApproval) {
+    logEvent(sale.id, 'approval_requested', `Over the shop's ₹${shop.per_sale_cap_inr} limit, so the owner was asked`);
+    await requestApproval(shop, sale);
+  }
   return { sale };
 }
 
@@ -124,7 +133,11 @@ export async function createSale(slug, amountInr) {
 export async function approveSale(sale) {
   const fields = { expires_at: newExpiry() };
   if (isDirect()) Object.assign(fields, await directInvoiceFields(await quote(sale.amount_inr)));
-  return transition(sale.id, 'awaiting_approval', 'awaiting_payment', fields);
+  const approved = transition(sale.id, 'awaiting_approval', 'awaiting_payment', fields);
+  if (approved && fields.bitrefill_invoice_id) {
+    logEvent(sale.id, 'invoice_created', `Bitrefill invoice ${fields.bitrefill_invoice_id}, customer pays it directly`);
+  }
+  return approved;
 }
 
 // One entry per chip on the pay page, using the same checks as creating a sale.
@@ -144,6 +157,7 @@ export async function amountOptions(shop) {
 }
 
 export const shopPayUrl = (shop) => `${config.PUBLIC_URL}/pay/${shop.slug}`;
+export const soundboxUrl = (shop) => `${config.PUBLIC_URL}/soundbox/${shop.slug}?k=${shop.soundbox_key}`;
 export const shopQrPng = (shop) => QRCode.toBuffer(shopPayUrl(shop), { width: 800, margin: 2 });
 
 const isoTime = (sqlite) => (sqlite ? `${sqlite.replace(' ', 'T')}Z` : null);
@@ -182,7 +196,8 @@ export function saleView(sale) {
 export function startExpirySweeper() {
   setInterval(() => {
     const expired = expireOldSales();
-    if (expired) console.log(`Expired ${expired} unpaid sale(s)`);
+    for (const id of expired) logEvent(id, 'expired', 'Not paid in time');
+    if (expired.length) console.log(`Expired ${expired.length} unpaid sale(s)`);
   }, SWEEP_MS);
 }
 
@@ -195,6 +210,7 @@ async function checkDirectPayments() {
       const invoice = await getInvoice(sale.bitrefill_invoice_id);
       if (invoice.payment?.status === 'unpaid') continue;
       if (transition(sale.id, 'awaiting_payment', 'paid', { paid_at: sqlTime() })) {
+        logEvent(sale.id, 'payment_seen', `Bitrefill reports the invoice payment as ${invoice.payment?.status}`);
         console.log(`Sale ${saleRef(sale.id)} paid directly: payment is ${invoice.payment?.status}`);
         fulfillSale(sale.id).catch((err) => console.error(`Sale ${saleRef(sale.id)} failed: ${err.message}`));
       }
@@ -210,4 +226,9 @@ export function startDirectPoller() {
     setTimeout(tick, DIRECT_POLL_MS);
   };
   tick();
+}
+
+// Shops made before soundbox links were private need a key of their own.
+export function addSoundboxKeys() {
+  for (const { id } of shopsWithoutSoundboxKey()) setSoundboxKey(id, newSecret());
 }

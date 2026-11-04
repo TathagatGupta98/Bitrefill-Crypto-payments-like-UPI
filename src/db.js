@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS shops (
   payout TEXT NOT NULL DEFAULT 'phonepe',
   per_sale_cap_inr INTEGER NOT NULL,
   daily_cap_inr INTEGER NOT NULL,
+  pin_hash TEXT,
+  soundbox_key TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -33,6 +35,11 @@ CREATE TABLE IF NOT EXISTS sales (
   payer_tx_hash TEXT,
   bitrefill_invoice_id TEXT,
   bitrefill_order_id TEXT,
+  card_sealed TEXT,
+  card_message_id INTEGER,
+  reveal_token_hash TEXT,
+  reveal_expires_at TEXT,
+  reveal_attempts INTEGER NOT NULL DEFAULT 0,
   card_code TEXT,
   card_pin TEXT,
   card_link TEXT,
@@ -46,12 +53,31 @@ CREATE TABLE IF NOT EXISTS sales (
 CREATE TABLE IF NOT EXISTS chain_cursor (id INTEGER PRIMARY KEY CHECK (id=1), last_block INTEGER);
 CREATE TABLE IF NOT EXISTS seen_logs (tx_hash TEXT, log_index INTEGER, PRIMARY KEY (tx_hash, log_index));
 CREATE TABLE IF NOT EXISTS onboarding (chat_id TEXT PRIMARY KEY, step TEXT, name TEXT, phone TEXT);
+CREATE TABLE IF NOT EXISTS sale_events (
+  id INTEGER PRIMARY KEY,
+  sale_id TEXT NOT NULL REFERENCES sales(id),
+  type TEXT NOT NULL,
+  detail TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // CREATE TABLE IF NOT EXISTS doesn't add columns to a database made by an earlier version.
-if (!db.pragma('table_info(sales)').some((column) => column.name === 'pay_address')) {
-  db.exec('ALTER TABLE sales ADD COLUMN pay_address TEXT');
+function addMissingColumns(table, columns) {
+  const existing = db.pragma(`table_info(${table})`).map((column) => column.name);
+  for (const [name, type] of Object.entries(columns)) {
+    if (!existing.includes(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  }
 }
+addMissingColumns('sales', {
+  pay_address: 'TEXT',
+  card_sealed: 'TEXT',
+  card_message_id: 'INTEGER',
+  reveal_token_hash: 'TEXT',
+  reveal_expires_at: 'TEXT',
+  reveal_attempts: 'INTEGER NOT NULL DEFAULT 0',
+});
+addMissingColumns('shops', { pin_hash: 'TEXT', soundbox_key: 'TEXT' });
 
 // Sales that count towards the daily caps. Expired, rejected and failed sales release their share.
 const COUNTED_STATUSES = `('awaiting_approval', 'awaiting_payment', 'paid', 'purchasing', 'delivered', 'claimed')`;
@@ -88,6 +114,7 @@ const payableSale = db.prepare(`
 const expireSales = db.prepare(`
   UPDATE sales SET status = 'expired'
   WHERE status IN ('awaiting_approval', 'awaiting_payment') AND expires_at <= ?
+  RETURNING id
 `);
 const cursorRead = db.prepare('SELECT last_block FROM chain_cursor WHERE id = 1');
 const cursorWrite = db.prepare(`
@@ -103,10 +130,25 @@ const directSales = db.prepare(`
 `);
 
 const shopInsert = db.prepare(`
-  INSERT INTO shops (slug, name, phone, telegram_chat_id, payout, per_sale_cap_inr, daily_cap_inr)
-  VALUES (@slug, @name, @phone, @telegram_chat_id, @payout, @per_sale_cap_inr, @daily_cap_inr)
+  INSERT INTO shops (slug, name, phone, telegram_chat_id, payout, per_sale_cap_inr, daily_cap_inr, soundbox_key)
+  VALUES (@slug, @name, @phone, @telegram_chat_id, @payout, @per_sale_cap_inr, @daily_cap_inr, @soundbox_key)
 `);
 const capsUpdate = db.prepare('UPDATE shops SET per_sale_cap_inr = ?, daily_cap_inr = ? WHERE id = ?');
+const pinUpdate = db.prepare('UPDATE shops SET pin_hash = ? WHERE id = ?');
+const keylessShops = db.prepare('SELECT id FROM shops WHERE soundbox_key IS NULL');
+const soundboxKeyUpdate = db.prepare('UPDATE shops SET soundbox_key = ? WHERE id = ?');
+const saleByRevealHash = db.prepare('SELECT * FROM sales WHERE reveal_token_hash = ?');
+const cardMessageUpdate = db.prepare('UPDATE sales SET card_message_id = ? WHERE id = ?');
+const plainCards = db.prepare(`
+  SELECT * FROM sales
+  WHERE card_code IS NOT NULL OR card_pin IS NOT NULL OR card_link IS NOT NULL OR card_instructions IS NOT NULL
+`);
+const plainCardSeal = db.prepare(`
+  UPDATE sales SET card_sealed = ?, card_code = NULL, card_pin = NULL, card_link = NULL, card_instructions = NULL
+  WHERE id = ?
+`);
+const eventInsert = db.prepare('INSERT INTO sale_events (sale_id, type, detail) VALUES (?, ?, ?)');
+const eventList = db.prepare('SELECT type, detail, created_at FROM sale_events WHERE sale_id = ? ORDER BY id');
 const onboardingRead = db.prepare('SELECT * FROM onboarding WHERE chat_id = ?');
 const onboardingWrite = db.prepare(`
   INSERT INTO onboarding (chat_id, step, name, phone) VALUES (@chat_id, @step, @name, @phone)
@@ -169,7 +211,7 @@ export const spendTodayUsd = (excludeSaleId = null) => spendToday.get(excludeSal
 
 export const openSaleUnits = () => openUnits.all().map((row) => row.usdc_amount_units);
 export const findPayableSale = (units) => payableSale.get(units, sqlTime());
-export const expireOldSales = () => expireSales.run(sqlTime()).changes;
+export const expireOldSales = () => expireSales.all(sqlTime()).map((row) => row.id);
 
 export const getChainCursor = () => cursorRead.get()?.last_block ?? null;
 export const setChainCursor = (block) => cursorWrite.run(block);
@@ -193,3 +235,15 @@ export const salesSummary = (shopId, period) => summaryByPeriod[period].get(shop
 export const recentSales = (shopId, limit) => recent.all(shopId, limit);
 export const unclaimedSales = (shopId) => unclaimed.all(shopId);
 export const adminSales = (limit) => adminList.all(limit);
+
+export const setShopPin = (shopId, pinHash) => pinUpdate.run(pinHash, shopId);
+export const shopsWithoutSoundboxKey = () => keylessShops.all();
+export const setSoundboxKey = (shopId, key) => soundboxKeyUpdate.run(key, shopId);
+export const getSaleByRevealHash = (hash) => saleByRevealHash.get(hash);
+export const setCardMessage = (saleId, messageId) => cardMessageUpdate.run(messageId, saleId);
+export const plainCardSales = () => plainCards.all();
+export const sealPlainCard = (saleId, sealed) => plainCardSeal.run(sealed, saleId);
+
+// The activity log. `detail` must never contain a card code, PIN or reveal link.
+export const logEvent = (saleId, type, detail = null) => eventInsert.run(saleId, type, detail);
+export const saleEvents = (saleId) => eventList.all(saleId);

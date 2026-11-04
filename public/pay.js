@@ -54,9 +54,9 @@ function chooseAmount(chip, { inr, approxUsdc }) {
   for (const other of $('chips').children) other.classList.toggle('chip-on', other === chip);
   $('amount-value').textContent = rupees(inr);
   $('amount-value').classList.remove('is-empty');
-  $('amount-sub').textContent = `About ${Number(approxUsdc).toFixed(2)} USDC`;
+  $('amount-sub').textContent = t('About {n} USDC').replace('{n}', Number(approxUsdc).toFixed(2));
   $('pay-button').disabled = false;
-  $('pay-button').textContent = `Pay ${rupees(inr)}`;
+  $('pay-button').textContent = t('Pay {amount}').replace('{amount}', rupees(inr));
 }
 
 function renderChips(amounts) {
@@ -72,10 +72,10 @@ function renderChips(amounts) {
   );
 
   const reasons = new Set(amounts.filter((amount) => !amount.enabled).map((amount) => amount.reason));
-  $('chip-note').textContent = reasons.size ? `Some amounts are unavailable: ${[...reasons].join(', ')}.` : '';
+  $('chip-note').textContent = reasons.size ? `${t('Some amounts are unavailable:')} ${[...reasons].map(t).join(', ')}.` : '';
   if (amounts.every((amount) => !amount.enabled)) {
-    $('amount-sub').textContent = 'Not available right now';
-    $('pay-button').textContent = 'Not available right now';
+    $('amount-sub').textContent = t('Not available right now');
+    $('pay-button').textContent = t('Not available right now');
   }
 }
 
@@ -106,11 +106,11 @@ function renderPay(sale) {
 }
 
 function renderWait(sale, { text, sub, showSteps }) {
-  $('wait-text').textContent = text;
-  $('wait-sub').textContent = sub;
+  $('wait-text').textContent = t(text);
+  $('wait-sub').textContent = sub ? t(sub) : '';
   $('wait-steps').hidden = !showSteps;
   $('wait-mascot').src = showSteps ? '/mascot/happy.svg' : '/mascot/think.svg';
-  $('wait-ref').textContent = `Ref ${sale.ref}`;
+  $('wait-ref').textContent = `${t('Ref')} ${sale.ref}`;
   show('screen-wait');
 }
 
@@ -119,8 +119,8 @@ function renderResult(sale) {
   const failure = FAILURES[sale.status];
   $('screen-result').className = `result ${success ? 'result-ok' : 'result-bad'}`;
   $('result-mascot').src = success ? '/mascot/happy.svg' : '/mascot/oops.svg';
-  $('result-title').textContent = success ? `Paid ${rupees(sale.amountInr)}` : failure.title;
-  $('result-text').textContent = success ? `to ${shopName}` : failure.text;
+  $('result-title').textContent = success ? t('Paid {amount}').replace('{amount}', rupees(sale.amountInr)) : t(failure.title);
+  $('result-text').textContent = success ? t('to {shop}').replace('{shop}', shopName) : t(failure.text);
   $('result-ref').textContent = sale.ref;
   $('result-time-row').hidden = !success;
   $('result-time').textContent = success ? new Date(sale.deliveredAt).toLocaleString('en-IN') : '';
@@ -171,7 +171,7 @@ async function poll(saleId) {
 async function startPayment() {
   const label = $('pay-button').textContent;
   $('pay-button').disabled = true;
-  $('pay-button').textContent = 'Preparing…';
+  $('pay-button').textContent = t('Preparing…');
   $('select-error').hidden = true;
   try {
     const sale = await api('/api/sales', {
@@ -184,7 +184,7 @@ async function startPayment() {
     renderSale(sale);
     setTimeout(() => poll(sale.id), POLL_MS);
   } catch (err) {
-    $('select-error').textContent = err.message;
+    $('select-error').textContent = t(err.message);
     $('select-error').hidden = false;
     $('pay-button').disabled = false;
     $('pay-button').textContent = label;
@@ -195,9 +195,9 @@ function setUpCopy(buttonId, label, getValue) {
   $(buttonId).addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(getValue());
-      toast(`${label} copied ✓`);
+      toast(t(`${label} copied ✓`));
     } catch {
-      toast('Could not copy. Please copy it by hand.');
+      toast(t('Could not copy. Please copy it by hand.'));
     }
   });
 }
@@ -218,7 +218,7 @@ async function start() {
   try {
     shop = await api(`/api/shops/${slug}`);
   } catch (err) {
-    $('shop-name').textContent = err.status === 404 ? 'Shop not found' : 'Could not load this shop. Please try again.';
+    $('shop-name').textContent = t(err.status === 404 ? 'Shop not found' : 'Could not load this shop. Please try again.');
     return;
   }
 

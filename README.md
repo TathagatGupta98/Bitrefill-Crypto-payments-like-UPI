@@ -40,10 +40,11 @@ Built for Free Society Hack, Agentic Commerce (Bitrefill) track.
 - **Checked before the customer pays:** guardrails run when the sale is created, before any payment address is shown. Relay mode checks again right before buying.
 - **Who approves above the limit:** the shop owner, using the Approve/Reject buttons. Only the operator (by editing env) can raise the agent-wide caps.
 - **No double buys:** one invoice per sale, saved before polling; guarded state transitions; in relay mode, each on-chain log is handled once.
-- **Card codes:** stored only until the owner taps "Claimed", then wiped. Never returned by the public API, logged or sent to the LLM.
+- **Sealed cards:** codes never go through Telegram. They're encrypted with AES-256-GCM, and the owner opens them on a private page with a 4-digit PIN. Links expire after 24 hours and lock after 5 wrong PINs. Claiming a card deletes Sikka's copy. Codes are never logged or sent to the LLM.
+- **Activity log:** every sale records its checks and steps, such as limits passed, invoice created, payment seen, card sealed, revealed and wiped, without ever storing a code.
 - **The LLM can't spend:** it answers the owner's questions with read-only tools plus `update_caps`, limited to the same ceilings. Every money step is deterministic code.
 
-**Known MVP gaps:** Sikka briefly holds customer USDC in relay mode. Direct mode refunds go to the operator's address, then back to the customer by hand. A direct payment made after a sale expires isn't tracked. Dev, admin, soundbox and summary routes have no auth, so anyone with a shop's link can see its daily total. Codes are stored in plaintext until claimed. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
+**Known MVP gaps:** Sikka briefly holds customer USDC in relay mode. Direct mode refunds go to the operator's address, then back to the customer by hand. A direct payment made after a sale expires isn't tracked. Dev and admin routes have no auth. The soundbox and its daily total are protected only by a secret link. The encryption key sits on the same server as the database, so it protects a copied database file, not a compromised server. Bitrefill also holds each code in the operator's account. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
 
 ## Run it in under 15 minutes
 
@@ -62,6 +63,7 @@ Fill in these values in `.env`:
 | `PUBLIC_URL` | `https://<your-domain>` |
 | `BITREFILL_API_KEY` | From Bitrefill → Account → Developers |
 | `TELEGRAM_BOT_TOKEN` | From @BotFather |
+| `CARD_ENCRYPTION_KEY` | Make one with `openssl rand -hex 32` |
 | `RECEIVE_ADDRESS` | Your Base address |
 | `LLM_API_KEY`, `LLM_MODEL` | Optional, for free-text chat |
 
@@ -72,7 +74,7 @@ ngrok http --url=<your-domain> 3000
 npm run dev                        # in a second terminal
 ```
 
-Send `/start` to your bot, answer three questions, and open the QR it sends.
+Send `/start` to your bot, answer four questions, and open the QR it sends.
 
 Everything stays free while `BITREFILL_TEST_MODE=true`. With `DEV_MODE=true`, the pay page has a "Simulate payment" link and `/admin` lists sales.
 
@@ -122,9 +124,10 @@ In relay mode, each sale gets a unique USDC amount, such as `1.1849`, so a payme
 | `src/chain.js` | Watches Base for USDC transfers |
 | `src/guardrails.js` | Caps and the balance floor |
 | `src/fulfill.js` | Paid sale → Bitrefill invoice → order → delivery |
+| `src/cards.js`, `src/vault.js` | Sealed cards: encryption, PIN checks, reveal links and wiping |
 | `src/bot.js` | Telegram onboarding, delivery, approvals and commands |
 | `src/agent.js` | LLM tool loop for the owner's free-text questions |
-| `public/` | Pay page, soundbox, printable standee, admin |
+| `public/` | Product site, pay page, card page, soundbox, printable standee, admin, in English and Hindi |
 
 ## Limits and next steps
 

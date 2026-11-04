@@ -18,7 +18,7 @@
     <div class="wrap">
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
       <nav class="nav-links">
-        <a href="/how-it-works">How it works</a>
+        <a class="optional" href="/how-it-works">How it works</a>
         <a class="optional" href="#safety">Safety</a>
         <a class="button" href="/start">Get started</a>
       </nav>
@@ -31,7 +31,7 @@
         <div>
           <p class="eyebrow">Crypto payments for local shops</p>
           <h1>Your shop can take crypto. <em>No wallet needed.</em></h1>
-          <p class="lead">A customer scans your QR and pays in USDC. You get the value as a PhonePe gift card, right in Telegram. Setup is one short chat.</p>
+          <p class="lead">A customer scans your QR and pays in USDC. You get the value as a sealed PhonePe gift card that only your PIN opens. Setup is one short chat.</p>
           <div class="actions">
             <a class="button" data-bot-link href="/start">Start on Telegram</a>
             <a class="button button-quiet" href="/how-it-works">See how it works</a>
@@ -71,14 +71,12 @@
               <p class="scene-big">+ ₹100</p>
               <span class="bubble">“Crypto se 100 rupaye prapt hue”</span>
             </div>
-            <div class="scene tg" data-caption="6. Your card arrives on Telegram">
+            <div class="scene tg" data-caption="6. A sealed card arrives on Telegram">
               <div class="tg-msg">
-                <strong>✅ Crypto se ₹100 prapt hue!</strong><br>
-                PhonePe gift card:<br>
-                Code: <code>XXXX…1234</code><br>
-                Claim it: PhonePe → Gift Cards → Add.
+                <strong>✅ ₹100 received in crypto!</strong><br>
+                <span>🔒 Your gift card is sealed. The code is not in this chat.</span>
               </div>
-              <div class="tg-btn">📋 Claimed ✅</div>
+              <div class="tg-btn">🔓 Reveal card</div>
             </div>
           </div>
           <img class="demo-mascot" src="/mascot/wave.svg" alt="Sikku, a friendly coin mascot, waving" width="124" height="131">
@@ -95,7 +93,7 @@
           <div class="tile">
             <div class="tile-num">1</div>
             <h3>Chat with Sikku</h3>
-            <p>Answer three short questions on Telegram: your shop's name, your number and how you'd like to be paid.</p>
+            <p>Answer four short questions on Telegram: your shop's name, your number, how you'd like to be paid and a private PIN.</p>
           </div>
           <div class="tile">
             <div class="tile-num">2</div>
@@ -105,7 +103,7 @@
           <div class="tile">
             <div class="tile-num">3</div>
             <h3>Get paid</h3>
-            <p>When a customer pays, you hear it, and a PhonePe gift card for that amount arrives in your chat.</p>
+            <p>When a customer pays, you hear it. A sealed gift card for that amount arrives, and only your PIN opens it.</p>
           </div>
         </div>
       </div>
@@ -121,7 +119,7 @@
             <ul class="ticks">
               <li>No crypto wallet or exchange account</li>
               <li>A soundbox that speaks Hindi</li>
-              <li>Ask “aaj kitna aaya?” in plain Hinglish</li>
+              <li>Ask “how much came in today?” in Hindi or English</li>
               <li>Change your limits just by asking</li>
             </ul>
           </div>
@@ -145,15 +143,15 @@
         <div class="grid-3">
           <div class="tile">
             <h3>You set the limits</h3>
-            <p>By default, anything over ₹500 needs your approval and sales stop at ₹2,000 a day.</p>
+            <p>By default, anything over ₹500 needs your approval and sales stop at ₹2,000 a day. The customer can't pay above your limit until you approve.</p>
           </div>
           <div class="tile">
-            <h3>You approve big sales</h3>
-            <p>Over your limit, you get Approve and Reject buttons. The customer can't pay until you tap one.</p>
+            <h3>Cards stay sealed</h3>
+            <p>Codes are encrypted and never sent in chat. Only your PIN opens one, wrong guesses lock the link, and the code is deleted once you claim it.</p>
           </div>
           <div class="tile">
             <h3>AI can't touch money</h3>
-            <p>The assistant only answers your questions and changes your limits within fixed ceilings. Every money step is plain code.</p>
+            <p>The assistant can't read card codes or spend. It only answers your questions and changes limits within fixed ceilings.</p>
           </div>
         </div>
       </div>
@@ -172,6 +170,10 @@
             <p>For real purchases, the customer's USDC goes straight to the gift card provider, Bitrefill, to pay for your card. Sikka doesn't hold it.</p>
           </details>
           <details>
+            <summary>Is my gift card safe?</summary>
+            <p>The code is encrypted on Sikka and never sent through Telegram. You open it on a private page with your PIN. Bitrefill also keeps a record of the order on its side.</p>
+          </details>
+          <details>
             <summary>What if a purchase fails?</summary>
             <p>The customer sees a clear screen with a reference and you get an alert on Telegram. Refunds are handled by hand for now.</p>
           </details>
@@ -187,7 +189,7 @@
       <div class="wrap cta">
         <div>
           <h2>Say namaste to Sikku</h2>
-          <p class="band-intro" style="margin-bottom: 18px">Your QR is three short questions away.</p>
+          <p class="band-intro" style="margin-bottom: 18px">Your QR is four short questions away.</p>
           <a class="button" data-bot-link href="/start">Start on Telegram</a>
         </div>
         <img src="/mascot/happy.svg" alt="" width="130" height="137">
@@ -202,6 +204,7 @@
     </div>
   </footer>
 
+  <script src="/i18n.js"></script>
   <script src="/site.js"></script>
 </body>
 </html>

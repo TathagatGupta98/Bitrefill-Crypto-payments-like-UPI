@@ -1,10 +1,11 @@
 import { createInvoice, getInvoice, getOrder } from './bitrefill.js';
 import { notifyOwner, sendCard } from './bot.js';
 import { quote } from './catalog.js';
-import { getSale, getShopById, saleRef, sqlTime, transition } from './db.js';
+import { getSale, getShopById, logEvent, saleRef, sqlTime, transition } from './db.js';
 import { events } from './events.js';
-import { checkSale } from './guardrails.js';
 import { config } from './config.js';
+import { checkSale } from './guardrails.js';
+import { sealCard } from './vault.js';
 
 // GET /invoices/{id} and /orders/{id} each allow 60 calls per 10 minutes.
 // A direct payment needs on-chain confirmations first, which the docs put at 1-5 minutes on L2s.
@@ -21,9 +22,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function failSale(sale, shop, reason) {
   if (!transition(sale.id, 'purchasing', 'failed', { error: reason })) return;
   console.error(`Sale ${saleRef(sale.id)} failed: ${reason}`);
+  logEvent(sale.id, 'purchase_failed', reason);
   await notifyOwner(
     shop,
-    `⚠️ Sale ${saleRef(sale.id)} paid ₹${sale.amount_inr} but the card purchase failed (${reason}). ` +
+    `⚠️ ${saleRef(sale.id)}: ₹${sale.amount_inr} का पेमेंट मिला, पर कार्ड नहीं खरीदा जा सका। ग्राहक को रिफंड देना होगा।\n` +
+      `Sale ${saleRef(sale.id)} paid ₹${sale.amount_inr} but the card purchase failed (${reason}). ` +
       (config.PAY_MODE === 'direct'
         ? `Bitrefill refunds this to ${config.RECEIVE_ADDRESS}, then send it back to the customer.`
         : `Customer refund needed: ${sale.payer_address ?? 'payer address unknown'}.`),
@@ -56,6 +59,7 @@ async function buyCard(sale, shop) {
     await failSale(sale, shop, check.reason);
     return false;
   }
+  logEvent(sale.id, 'limits_rechecked', 'Limits checked again right before buying: passed');
 
   const item = offer.packageId ? { package_id: offer.packageId } : { value: offer.value };
   let invoice;
@@ -76,27 +80,29 @@ async function buyCard(sale, shop) {
     bitrefill_invoice_id: invoice.id,
     bitrefill_order_id: invoice.orders?.[0]?.id ?? null,
   });
+  logEvent(sale.id, 'invoice_created', `Bitrefill invoice ${invoice.id}, paid from balance`);
   return true;
 }
 
 // redemption_info is documented as both an object and a plain string, and its fields vary per product.
 function cardFields(redemption) {
-  if (typeof redemption === 'string') return { card_instructions: redemption };
+  if (typeof redemption === 'string') return { instructions: redemption };
   return {
-    card_code: redemption?.code ?? null,
-    card_pin: redemption?.pin ?? null,
-    card_link: redemption?.link ?? null,
-    card_instructions: redemption?.instructions ?? null,
+    code: redemption?.code ?? null,
+    pin: redemption?.pin ?? null,
+    link: redemption?.link ?? null,
+    instructions: redemption?.instructions ?? null,
   };
 }
 
 async function deliverCard(sale, shop, order) {
   const delivered = transition(sale.id, 'purchasing', 'delivered', {
-    ...cardFields(order.redemption_info),
+    card_sealed: sealCard(sale.id, cardFields(order.redemption_info)),
     bitrefill_order_id: order.id,
     delivered_at: sqlTime(),
   });
   if (!delivered) return;
+  logEvent(sale.id, 'card_sealed', 'Card received from Bitrefill and encrypted. The code was not logged');
 
   events.emit(shop.slug, { type: 'delivered', saleId: sale.id, amountInr: sale.amount_inr });
   try {
@@ -146,7 +152,8 @@ async function waitForCard(sale, shop) {
   // The sale stays in `purchasing`, so a retry resumes the same invoice.
   await notifyOwner(
     shop,
-    `⏳ Sale ${saleRef(sale.id)} (₹${sale.amount_inr}): Bitrefill is taking longer than usual. ` +
+    `⏳ ${saleRef(sale.id)} (₹${sale.amount_inr}): Bitrefill को सामान्य से ज़्यादा समय लग रहा है।\n` +
+      `Bitrefill is taking longer than usual. ` +
       `Invoice ${sale.bitrefill_invoice_id}. Try again with /retry ${sale.id}`,
   );
 }

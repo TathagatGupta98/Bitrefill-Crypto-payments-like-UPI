@@ -79,7 +79,7 @@ const TOOLS = [
     daily_inr: { type: 'integer', minimum: 1, maximum: MAX_DAILY_INR },
   }),
   tool('get_status', "Current limits, today's usage and whether Sikka can accept payments right now."),
-  tool('resend_unclaimed_cards', 'Send the owner their unclaimed gift cards again in this chat.'),
+  tool('resend_unclaimed_cards', 'Send the owner a fresh Reveal card button for each unclaimed card. Codes are never sent in chat.'),
 ];
 
 // The shop always comes from the Telegram chat, never from the model's arguments.
@@ -112,8 +112,11 @@ export async function runAgent(shop, userText) {
       role: 'system',
       content:
         'You are Sikka, a friendly assistant for a small Indian shop owner who accepts crypto via Sikka. ' +
-        'Reply in short, simple Hinglish (1–3 sentences). Always use tools for numbers; never invent amounts. ' +
-        `You cannot move money or buy anything yourself. Shop: ${shop.name}.`,
+        "Reply briefly (1–3 sentences) in the owner's language: Hindi or Hinglish if they write that way, otherwise English. " +
+        'Always use tools for numbers; never invent amounts. ' +
+        'You cannot move money or buy anything yourself. You have no access to gift card codes, PINs or reveal links. ' +
+        'If asked for a code, say you cannot see it, and that the Reveal card button with their PIN opens it. ' +
+        `Shop: ${shop.name}.`,
     },
     { role: 'user', content: userText },
   ];

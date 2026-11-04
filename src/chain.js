@@ -8,6 +8,7 @@ import {
   findPayableSale,
   getChainCursor,
   getShopById,
+  logEvent,
   markLogSeen,
   saleRef,
   setChainCursor,
@@ -39,6 +40,7 @@ const claimTransfer = db.transaction((log) => {
     payer_tx_hash: log.transactionHash,
     payer_address: log.args.from,
   });
+  logEvent(sale.id, 'payment_seen', `Matched on Base in ${log.transactionHash}`);
   return { sale };
 });
 
@@ -54,7 +56,8 @@ function handleTransfer(log) {
     if (late) {
       notifyOwner(
         getShopById(late.shop_id),
-        `⚠️ Sale ${saleRef(late.id)} (₹${late.amount_inr}) had expired when ${usdc} USDC arrived from ${log.args.from}. ` +
+        `⚠️ ${saleRef(late.id)}: बिक्री की समय सीमा खत्म होने के बाद पैसा आया। कोई कार्ड नहीं खरीदा गया, ग्राहक को रिफंड दीजिए।\n` +
+          `Sale ${saleRef(late.id)} (₹${late.amount_inr}) had expired when ${usdc} USDC arrived from ${log.args.from}. ` +
           'No card was bought. Refund the customer manually.',
       );
     }

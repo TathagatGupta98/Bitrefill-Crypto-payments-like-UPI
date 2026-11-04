@@ -3,13 +3,17 @@ import { startBot } from './bot.js';
 import { startChainWatcher } from './chain.js';
 import { config, requireConfig } from './config.js';
 import { routes } from './routes.js';
-import { startDirectPoller, startExpirySweeper } from './sales.js';
+import { sealOldCards } from './cards.js';
+import { addSoundboxKeys, startDirectPoller, startExpirySweeper } from './sales.js';
 
 requireConfig();
 // Test cards aren't free in direct mode: Bitrefill charges the customer real USDC for them.
 if (config.PAY_MODE === 'direct' && config.BITREFILL_TEST_MODE) {
   throw new Error('PAY_MODE=direct charges real USDC even for test cards. Set BITREFILL_TEST_MODE=false to use it.');
 }
+
+sealOldCards();
+addSoundboxKeys();
 
 const app = express();
 app.use(express.json());

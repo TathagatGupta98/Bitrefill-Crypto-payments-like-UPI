@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url';
 import express, { Router } from 'express';
 import QRCode from 'qrcode';
 import { getBotUsername } from './bot.js';
+import { claimCard, revealCard } from './cards.js';
 import { config } from './config.js';
-import { adminSales, getSale, getShopBySlug, saleRef, salesSummary, sqlTime, transition } from './db.js';
+import { adminSales, getSale, getShopBySlug, logEvent, saleEvents, saleRef, salesSummary, sqlTime, transition } from './db.js';
 import { sseHandler } from './events.js';
 import { fulfillSale } from './fulfill.js';
 import { amountOptions, createSale, saleView, shopQrPng } from './sales.js';
@@ -44,19 +45,52 @@ routes.get('/api/shops/:slug', async (req, res) => {
   res.json({ name: shop.name, verified: true, amounts: await amountOptions(shop) });
 });
 
-// A light read for the standee and soundbox, which don't need amount checks from Bitrefill.
-routes.get('/api/shops/:slug/summary', (req, res) => {
+// The name is public anyway, because it's printed on the standee.
+routes.get('/api/shops/:slug/name', (req, res) => {
   const shop = getShopBySlug(req.params.slug);
   if (!shop) return res.status(404).json({ reason: 'shop not found' });
+  res.json({ name: shop.name });
+});
+
+// Sales figures are private, so the soundbox needs the key from the owner's Telegram link.
+function soundboxShop(req, res) {
+  const shop = getShopBySlug(req.params.slug);
+  if (!shop) {
+    res.status(404).json({ reason: 'shop not found' });
+    return null;
+  }
+  if (!shop.soundbox_key || req.query.k !== shop.soundbox_key) {
+    res.status(403).json({ reason: 'open the soundbox link from your Telegram chat' });
+    return null;
+  }
+  return shop;
+}
+
+routes.get('/api/shops/:slug/summary', (req, res) => {
+  const shop = soundboxShop(req, res);
+  if (!shop) return;
   const { count, totalInr } = salesSummary(shop.id, 'today');
   res.json({ name: shop.name, todayCount: count, todayInr: totalInr });
 });
 
 routes.get('/api/shops/:slug/events', (req, res) => {
-  const shop = getShopBySlug(req.params.slug);
-  if (!shop) return res.status(404).json({ reason: 'shop not found' });
-  sseHandler(shop.slug)(req, res);
+  const shop = soundboxShop(req, res);
+  if (shop) sseHandler(shop.slug)(req, res);
 });
+
+routes.get('/card/:token', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'card.html')));
+
+// Browsers and proxies must never keep a copy of a card.
+function sendCardResult(res, result) {
+  res.set('Cache-Control', 'no-store');
+  if (result.reason) {
+    return res.status(result.status).json({ reason: result.reason, attemptsLeft: result.attemptsLeft });
+  }
+  res.json(result);
+}
+
+routes.post('/api/cards/:token/reveal', (req, res) => sendCardResult(res, revealCard(req.params.token, req.body?.pin)));
+routes.post('/api/cards/:token/claim', (req, res) => sendCardResult(res, claimCard(req.params.token, req.body?.pin)));
 
 routes.post('/api/sales', async (req, res) => {
   const { slug, amountInr } = req.body ?? {};
@@ -81,6 +115,7 @@ routes.get('/api/sales/:id/qr.png', async (req, res) => {
 if (config.DEV_MODE) {
   routes.get('/admin', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
   routes.get('/api/dev/sales', (req, res) => res.json(adminSales(ADMIN_SALES_LIMIT)));
+  routes.get('/api/dev/sales/:id/events', (req, res) => res.json(saleEvents(req.params.id)));
 
   routes.post('/api/dev/sales/:id/mark-paid', (req, res) => {
     if (config.PAY_MODE === 'direct') return res.status(409).json({ reason: "direct mode can't be simulated" });
@@ -90,6 +125,7 @@ if (config.DEV_MODE) {
       return res.status(409).json({ reason: `sale is ${sale.status}` });
     }
 
+    logEvent(sale.id, 'payment_simulated', 'Developer test: no real payment was made');
     fulfillSale(sale.id).catch((err) => console.error(`Sale ${saleRef(sale.id)} failed: ${err.message}`));
     res.status(202).json({ ok: true });
   });

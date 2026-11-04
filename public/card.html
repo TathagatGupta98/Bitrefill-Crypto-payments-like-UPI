@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ec">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Your Sikka card</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
+    <span id="lang-slot"></span>
+  </header>
+
+  <main class="page card-page">
+    <section id="view-sealed" class="card sealed-card">
+      <img class="wait-mascot" src="/mascot/wave.svg" alt="" width="104" height="110">
+      <p class="seal-badge">🔒 Sealed</p>
+      <h1>Your gift card is sealed</h1>
+      <p class="wait-sub">The code never appears in Telegram. Enter your 4-digit PIN to open it.</p>
+      <form id="pin-form">
+        <label class="pin-label" for="pin">Your PIN</label>
+        <input id="pin" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+        <p id="pin-error" class="error" role="alert" hidden></p>
+        <button id="open-card" class="primary" type="submit">Open card</button>
+      </form>
+    </section>
+
+    <section id="view-card" hidden>
+      <div class="card sealed-card">
+        <img class="result-mascot" src="/mascot/happy.svg" alt="" width="104" height="110">
+        <h1 id="card-amount"></h1>
+        <p id="card-shop" class="wait-sub"></p>
+        <p class="seal-badge seal-open">🔓 Hides again in <span id="hide-timer"></span>s</p>
+
+        <div id="row-code" class="secret-row">
+          <span class="copy-label">Code</span>
+          <span id="card-code" class="secret-value"></span>
+          <button id="copy-code" class="copy-action secret-copy" type="button">Copy</button>
+        </div>
+        <div id="row-pin" class="secret-row">
+          <span class="copy-label">Card PIN</span>
+          <span id="card-pin" class="secret-value"></span>
+          <button id="copy-pin" class="copy-action secret-copy" type="button">Copy</button>
+        </div>
+        <a id="card-link" class="primary card-link" target="_blank" rel="noopener noreferrer" hidden>Open card link</a>
+      </div>
+
+      <div class="checklist">
+        <strong>How to add it</strong>
+        <p class="claim-step">In PhonePe, go to Gift Cards, then Add, and enter this code.</p>
+        <p id="card-instructions" class="claim-step" hidden></p>
+      </div>
+
+      <button id="claim" class="primary claim-button">I've added it. Delete the code</button>
+      <p class="note">This deletes Sikka's copy for good. Only tap it once the card is in PhonePe.</p>
+      <p id="claim-error" class="error" role="alert" hidden></p>
+      <p id="card-ref" class="note"></p>
+    </section>
+
+    <section id="view-done" class="card sealed-card" hidden>
+      <img class="result-mascot" src="/mascot/happy.svg" alt="" width="104" height="110">
+      <h1>Card claimed</h1>
+      <p class="wait-sub">Sikka's copy of the code has been deleted. Enjoy your balance!</p>
+    </section>
+
+    <section id="view-closed" class="card sealed-card" hidden>
+      <img class="result-mascot" src="/mascot/oops.svg" alt="" width="104" height="110">
+      <h1 id="closed-title"></h1>
+      <p id="closed-text" class="wait-sub"></p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="/i18n.js"></script>
+  <script src="/card.js"></script>
+</body>
+</html>

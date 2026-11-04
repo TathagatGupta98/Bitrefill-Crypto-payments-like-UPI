@@ -38,6 +38,10 @@
   text-decoration: none;
 }
 
+.nav-links .lang-switch {
+  color: var(--ink);
+}
+
 .nav-links a.button {
   width: auto;
   padding: 8px 14px;
@@ -326,6 +330,12 @@
 
 .band-green .band-intro {
   color: #cfe5de;
+}
+
+:lang(hi) .hero h1,
+:lang(hi) .band h2 {
+  line-height: 1.4;
+  letter-spacing: 0;
 }
 
 .grid-3 {

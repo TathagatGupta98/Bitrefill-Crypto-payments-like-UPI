@@ -7,11 +7,15 @@ const ANSWERS = [
   },
   {
     q: 'How do I get my money?',
-    a: 'As a PhonePe gift card, delivered to you on Telegram. You add it to PhonePe and it becomes gift card balance. It does not go to your bank account.',
+    a: 'As a PhonePe gift card. I send a sealed link on Telegram, and your PIN opens it. You add it to PhonePe as gift card balance. It does not go to your bank account.',
   },
   {
     q: 'How long is setup?',
-    a: 'Three short questions on Telegram. Then I send your QR, a standee to print and a soundbox link.',
+    a: 'Four short questions on Telegram. Then I send your QR, a standee to print and a soundbox link.',
+  },
+  {
+    q: 'Is my card code safe?',
+    a: 'It is encrypted and never sent in chat. Only your PIN opens it, wrong guesses lock the link, and it is deleted once you claim the card.',
   },
   {
     q: 'What if a payment fails?',
@@ -79,7 +83,7 @@ function buildAskSikku() {
   face.alt = '';
   const label = document.createElement('span');
   label.className = 'ask-label';
-  label.textContent = 'Ask Sikku';
+  label.textContent = t('Ask Sikku');
   toggle.setAttribute('aria-label', 'Ask Sikku');
   toggle.append(face, label);
 
@@ -95,15 +99,15 @@ function buildAskSikku() {
   chips.className = 'ask-chips';
   for (const { q, a } of ANSWERS) {
     const chip = document.createElement('button');
-    chip.textContent = q;
+    chip.textContent = t(q);
     chip.addEventListener('click', () => {
-      addMessage(q, true);
-      addMessage(a, false);
+      addMessage(t(q), true);
+      addMessage(t(a), false);
     });
     chips.append(chip);
   }
   panel.append(chips);
-  addMessage('Namaste! I’m Sikku. What would you like to know?', false);
+  addMessage(t('Namaste! I’m Sikku. What would you like to know?'), false);
 
   toggle.addEventListener('click', () => {
     panel.hidden = !panel.hidden;

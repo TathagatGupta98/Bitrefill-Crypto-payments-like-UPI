@@ -5,6 +5,7 @@ const REQUIRED = [
   'BITREFILL_API_KEY',
   'TELEGRAM_BOT_TOKEN',
   'RECEIVE_ADDRESS',
+  'CARD_ENCRYPTION_KEY',
 ];
 
 const str = (name, fallback = '') => process.env[name]?.trim() || fallback;
@@ -26,6 +27,7 @@ export const config = {
   BITREFILL_TEST_PRODUCT: str('BITREFILL_TEST_PRODUCT', 'test-gift-card-code'),
   PHONEPE_PRODUCT_ID: str('PHONEPE_PRODUCT_ID', 'phonepe-india'),
   TELEGRAM_BOT_TOKEN: str('TELEGRAM_BOT_TOKEN'),
+  CARD_ENCRYPTION_KEY: str('CARD_ENCRYPTION_KEY'),
   LLM_BASE_URL: str('LLM_BASE_URL', 'https://api.groq.com/openai/v1'),
   LLM_API_KEY: str('LLM_API_KEY'),
   LLM_MODEL: str('LLM_MODEL'),

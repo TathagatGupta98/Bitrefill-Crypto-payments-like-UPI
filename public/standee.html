@@ -17,7 +17,7 @@
     <div class="standee-band">
       <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
       <h1 id="shop-name">&nbsp;</h1>
-      <p class="standee-line">Pay with crypto · USDC</p>
+      <p class="standee-line">क्रिप्टो से पेमेंट करें · Pay with crypto · USDC</p>
     </div>
 
     <div class="standee-qr-wrap">
@@ -25,21 +25,21 @@
     </div>
 
     <ol class="standee-steps">
-      <li>Scan</li>
-      <li>Pick amount</li>
-      <li>Send USDC</li>
+      <li>स्कैन<br>Scan</li>
+      <li>रकम चुनें<br>Pick amount</li>
+      <li>USDC भेजें<br>Send USDC</li>
     </ol>
 
     <div class="standee-foot">
-      <p class="verified">✓ Verified Sikka merchant</p>
-      <p class="standee-hint">Scan with phone camera — no app needed</p>
+      <p class="verified">✓ सत्यापित सिक्का दुकान · Verified Sikka merchant</p>
+      <p class="standee-hint">फ़ोन कैमरे से स्कैन करें, ऐप की ज़रूरत नहीं<br>Scan with phone camera — no app needed</p>
     </div>
   </article>
 
   <script>
     const slug = location.pathname.split('/')[2];
     document.getElementById('qr').src = `/qr/${slug}.png`;
-    fetch(`/api/shops/${slug}/summary`)
+    fetch(`/api/shops/${slug}/name`)
       .then((res) => (res.ok ? res.json() : { name: 'Shop not found' }))
       .then(({ name }) => {
         document.getElementById('shop-name').textContent = name;

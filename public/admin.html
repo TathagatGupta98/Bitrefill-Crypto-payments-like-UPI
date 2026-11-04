@@ -28,7 +28,7 @@
       <table>
         <thead>
           <tr>
-            <th>Ref</th><th>Time (UTC)</th><th>Shop</th><th class="num">₹</th><th class="num">USDC</th><th>Status</th><th>Base tx</th><th>Invoice</th><th>Order</th><th>Error</th>
+            <th>Ref</th><th>Time (UTC)</th><th>Shop</th><th class="num">₹</th><th class="num">USDC</th><th>Status</th><th>Base tx</th><th>Invoice</th><th>Order</th><th>Error</th><th>Activity</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -76,6 +76,47 @@
       row.insertCell().append(badge);
     }
 
+    const openLogs = new Set();
+
+    function eventLabel(type) {
+      return type.replaceAll('_', ' ');
+    }
+
+    async function showActivity(row, saleId) {
+      const events = await (await fetch(`/api/dev/sales/${saleId}/events`)).json();
+      const logRow = document.createElement('tr');
+      logRow.className = 'log-row';
+      const td = logRow.insertCell();
+      td.colSpan = row.cells.length;
+      const list = document.createElement('ol');
+      list.className = 'activity';
+      for (const event of events) {
+        const item = document.createElement('li');
+        const time = document.createElement('time');
+        time.textContent = event.created_at;
+        const name = document.createElement('strong');
+        name.textContent = eventLabel(event.type);
+        const detail = document.createElement('span');
+        detail.textContent = event.detail ?? '';
+        item.append(time, name, detail);
+        list.append(item);
+      }
+      td.append(list);
+      row.after(logRow);
+    }
+
+    function activityButton(row, saleId) {
+      const button = document.createElement('button');
+      button.className = 'link log-button';
+      button.textContent = openLogs.has(saleId) ? 'Hide' : 'Show';
+      button.addEventListener('click', () => {
+        if (openLogs.has(saleId)) openLogs.delete(saleId);
+        else openLogs.add(saleId);
+        refresh();
+      });
+      row.insertCell().append(button);
+    }
+
     function renderStats(sales) {
       const count = (statuses) => sales.filter((sale) => statuses.includes(sale.status)).length;
       const total = sales
@@ -106,6 +147,8 @@
         cell(row, sale.bitrefill_order_id, 'mono');
         const error = cell(row, sale.error, sale.error ? 'error-cell' : '');
         if (sale.error) error.title = sale.error;
+        activityButton(row, sale.id);
+        if (openLogs.has(sale.id)) await showActivity(row, sale.id);
       }
       renderStats(sales);
       document.getElementById('empty').hidden = sales.length > 0;

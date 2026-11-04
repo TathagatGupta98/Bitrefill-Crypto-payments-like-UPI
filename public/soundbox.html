@@ -15,6 +15,7 @@
   <main class="soundbox">
     <div class="soundbox-top">
       <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
+      <span id="lang-slot"></span>
       <span id="status" class="pill" hidden><span class="dot"></span><span id="listening">Listening…</span></span>
     </div>
 
@@ -42,29 +43,32 @@
   <div id="hit" class="hit" hidden>
     <img src="/mascot/happy.svg" alt="" width="150" height="158">
     <p id="flash" class="flash" hidden></p>
-    <p class="hit-line">क्रिप्टो से प्राप्त हुए</p>
+    <p class="hit-line no-translate">क्रिप्टो से प्राप्त हुए</p>
+    <p class="hit-line hit-line-en no-translate">received in crypto</p>
   </div>
 
+  <script src="/i18n.js"></script>
   <script>
     const FLASH_MS = 6000;
     const SPEECH_DELAY_MS = 700;
     const MAX_RECENT = 5;
     const slug = location.pathname.split('/')[2];
+    const key = encodeURIComponent(new URLSearchParams(location.search).get('k') ?? '');
     const $ = (id) => document.getElementById(id);
     const rupees = (inr) => `₹${inr.toLocaleString('en-IN')}`;
     let audio;
     let flashTimer;
 
     async function refreshToday() {
-      const res = await fetch(`/api/shops/${slug}/summary`);
+      const res = await fetch(`/api/shops/${slug}/summary?k=${key}`);
       if (!res.ok) {
-        $('shop-name').textContent = 'Shop not found';
+        $('shop-name').textContent = t(res.status === 403 ? 'Open this link from your Telegram chat' : 'Shop not found');
         $('setup').hidden = true;
         return false;
       }
       const { name, todayInr, todayCount } = await res.json();
       $('shop-name').textContent = name;
-      $('today').textContent = `${rupees(todayInr)} · ${todayCount} sale${todayCount === 1 ? '' : 's'}`;
+      $('today').textContent = `${rupees(todayInr)} · ${todayCount} ${t(todayCount === 1 ? 'sale' : 'sales')}`;
       return true;
     }
 
@@ -127,15 +131,15 @@
     }
 
     function listen() {
-      const source = new EventSource(`/api/shops/${slug}/events`);
+      const source = new EventSource(`/api/shops/${slug}/events?k=${key}`);
       // Also runs after a reconnect, in case a sale came in while the connection was down.
       source.onopen = () => {
-        $('listening').textContent = 'Listening…';
+        $('listening').textContent = t('Listening…');
         $('status').classList.remove('is-off');
         refreshToday();
       };
       source.onerror = () => {
-        $('listening').textContent = 'Reconnecting…';
+        $('listening').textContent = t('Reconnecting…');
         $('status').classList.add('is-off');
       };
       source.onmessage = (message) => {

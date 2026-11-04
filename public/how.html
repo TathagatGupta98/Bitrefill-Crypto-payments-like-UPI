@@ -17,7 +17,7 @@
     <div class="wrap">
       <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
       <nav class="nav-links">
-        <a href="/how-it-works">How it works</a>
+        <a class="optional" href="/how-it-works">How it works</a>
         <a class="optional" href="/#safety">Safety</a>
         <a class="button" href="/start">Get started</a>
       </nav>
@@ -67,16 +67,16 @@
             <img src="/mascot/happy.svg" alt="" width="76" height="80">
             <div>
               <span class="who">Sikka</span>
-              <h3>Delivers your gift card</h3>
-              <p>Once Bitrefill delivers, the customer's page turns green, your soundbox announces the sale, and the card arrives in your Telegram chat.</p>
+              <h3>Seals and delivers your gift card</h3>
+              <p>Once Bitrefill delivers, the card is encrypted. The customer's page turns green, your soundbox announces the sale, and Telegram tells you it's ready, without the code.</p>
             </div>
           </li>
           <li>
             <img src="/mascot/happy.svg" alt="" width="76" height="80">
             <div>
               <span class="who">You</span>
-              <h3>Add the card to PhonePe</h3>
-              <p>Claim it in PhonePe, then tap “Claimed” in the chat. Sikka then deletes its copy of the code.</p>
+              <h3>Opens the card with your PIN</h3>
+              <p>Tap Reveal card and enter your PIN. Add the card in PhonePe, then tap to delete the code from Sikka.</p>
             </div>
           </li>
         </ol>
@@ -97,6 +97,7 @@
               <tr><td>Over your daily limit</td><td>That amount is unavailable</td><td>Nothing to do</td></tr>
               <tr><td>The 15-minute timer ends</td><td>“Time ran out”, with a reference</td><td>Nothing, unless a late payment reaches Sikka's address</td></tr>
               <tr><td>The card purchase fails</td><td>A red screen and a reference</td><td>A Telegram alert that a refund is needed</td></tr>
+              <tr><td>Someone guesses your PIN wrongly</td><td>Nothing</td><td>After 5 tries the link locks and you get an alert</td></tr>
             </tbody>
           </table>
         </div>
@@ -107,7 +108,7 @@
       <div class="wrap cta">
         <div>
           <h2>Ready to try it?</h2>
-          <p class="band-intro" style="margin-bottom: 18px">Set up a shop in three short questions.</p>
+          <p class="band-intro" style="margin-bottom: 18px">Set up a shop in four short questions.</p>
           <a class="button" data-bot-link href="/start">Start on Telegram</a>
         </div>
         <img src="/mascot/wave.svg" alt="" width="130" height="137">
@@ -122,6 +123,7 @@
     </div>
   </footer>
 
+  <script src="/i18n.js"></script>
   <script src="/site.js"></script>
 </body>
 </html>

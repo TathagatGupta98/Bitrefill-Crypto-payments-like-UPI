@@ -1,0 +1,35 @@
+{
+  "name": "sikka",
+  "version": "1.0.0",
+  "description": "Accept USDC in an Indian shop through one Telegram chat and one printed QR",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "smoke": "node scripts/smoke-bitrefill.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TathagatGupta98/Bitrefill-Crypto-payments-like-UPI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/TathagatGupta98/Bitrefill-Crypto-payments-like-UPI/issues"
+  },
+  "homepage": "https://github.com/TathagatGupta98/Bitrefill-Crypto-payments-like-UPI#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "grammy": "^1.46.0",
+    "nanoid": "^6.0.2",
+    "openai": "^7.50.0",
+    "qrcode": "^1.5.4",
+    "viem": "^2.57.16"
+  }
+}

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express, { Router } from 'express';
 import QRCode from 'qrcode';
+import { getBotUsername } from './bot.js';
 import { config } from './config.js';
 import { adminSales, getSale, getShopBySlug, saleRef, salesSummary, sqlTime, transition } from './db.js';
 import { sseHandler } from './events.js';
@@ -15,6 +16,17 @@ export const routes = Router();
 routes.use(express.static(PUBLIC_DIR, { index: false }));
 
 const ADMIN_SALES_LIMIT = 100;
+
+const botUrl = () => (getBotUsername() ? `https://t.me/${getBotUsername()}?start=web` : null);
+
+routes.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'home.html')));
+routes.get('/how-it-works', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'how.html')));
+routes.get('/start', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'start.html')));
+routes.get('/api/bot', (req, res) => res.json({ username: getBotUsername(), url: botUrl() }));
+routes.get('/bot-qr.png', async (req, res) => {
+  if (!botUrl()) return res.status(503).json({ reason: 'bot is not connected yet' });
+  res.type('png').send(await QRCode.toBuffer(botUrl(), { width: 480, margin: 1 }));
+});
 
 routes.get('/pay/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'pay.html')));
 routes.get('/standee/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'standee.html')));

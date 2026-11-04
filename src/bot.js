@@ -1,4 +1,6 @@
-import { Bot, InlineKeyboard, InputFile } from 'grammy';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Bot, InlineKeyboard, InputFile, Keyboard } from 'grammy';
 import { customAlphabet } from 'nanoid';
 import { agentEnabled, changeCaps, getSalesSummary, listRecentSales, runAgent } from './agent.js';
 import { config } from './config.js';
@@ -27,9 +29,22 @@ const HELP_TEXT = [
   '/caps <per_sale> <daily> – limits badliye, e.g. /caps 500 2000',
 ].join('\n');
 
+const WELCOME_IMAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'mascot', 'sikku-welcome.png');
+const WELCOME_TEXT = 'Namaste! 🙏 Main Sikku hoon. Sikka se aap crypto payments le sakte hain, bina kisi wallet ke.\n\n3 chhote sawaal, phir aapka QR ready.';
+const COMMANDS = [
+  { command: 'start', description: 'Shop setup, or get your QR and links again' },
+  { command: 'today', description: "Today's sales" },
+  { command: 'sales', description: 'Recent sales' },
+  { command: 'caps', description: 'Change limits: /caps 500 2000' },
+  { command: 'help', description: 'What Sikku can do' },
+];
+
 const slugSuffix = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 4);
 
 let bot;
+let botUsername = null;
+
+export const getBotUsername = () => botUsername;
 
 const escapeHtml = (text) =>
   String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -140,15 +155,25 @@ async function handleRetry(ctx) {
 
 async function sendShopKit(ctx, shop) {
   await ctx.replyWithPhoto(new InputFile(await shopQrPng(shop), 'sikka-qr.png'), {
-    caption: `${shop.name} ka payment QR: ${shopPayUrl(shop)}`,
+    caption: `${shop.name} ka payment QR. Customer ise phone camera se scan kare.\n${shopPayUrl(shop)}`,
   });
   await ctx.reply(
     [
-      `🖨 Print this: ${config.PUBLIC_URL}/standee/${shop.slug}`,
-      `🔊 Soundbox (counter ke paas wale phone par kholiye): ${config.PUBLIC_URL}/soundbox/${shop.slug}`,
+      '✅ Aapki shop ready hai!',
+      '',
+      '1. 🖨 Standee print karke counter par rakhiye',
+      '2. 🔊 Soundbox counter ke paas wale phone par kholiye',
+      '3. 🧪 Khud ek baar pay page dekh lijiye',
       '',
       `Limits: ${rupees(shop.per_sale_cap_inr)} per sale without approval, ${rupees(shop.daily_cap_inr)} per day. Change anytime, just ask me.`,
     ].join('\n'),
+    {
+      reply_markup: new InlineKeyboard()
+        .url('🖨 Standee', `${config.PUBLIC_URL}/standee/${shop.slug}`)
+        .url('🔊 Soundbox', `${config.PUBLIC_URL}/soundbox/${shop.slug}`)
+        .row()
+        .url('🧪 Pay page', shopPayUrl(shop)),
+    },
   );
 }
 
@@ -159,10 +184,22 @@ async function handleStart(ctx) {
     return;
   }
   saveOnboarding({ chat_id: ctx.chat.id, step: 'name', name: null, phone: null });
-  await ctx.reply('Namaste! 🙏 Sikka se aap crypto payments le sakte hain. Shop ka naam kya hai?');
+  try {
+    await ctx.replyWithPhoto(new InputFile(WELCOME_IMAGE), { caption: WELCOME_TEXT });
+  } catch (err) {
+    console.error(`Could not send the welcome image: ${err.message}`);
+    await ctx.reply(WELCOME_TEXT);
+  }
+  await ctx.reply('Step 1 of 3: Shop ka naam kya hai?');
 }
 
 const payoutKeyboard = () => new InlineKeyboard().text('PhonePe balance ✓', 'payout:phonepe');
+const phoneKeyboard = () => new Keyboard().requestContact('📱 Share my number').resized().oneTime();
+
+async function askPayout(ctx) {
+  await ctx.reply('Number mil gaya ✓', { reply_markup: { remove_keyboard: true } });
+  await ctx.reply('Step 3 of 3: Paise kahan aaye?', { reply_markup: payoutKeyboard() });
+}
 
 async function handleOnboardingText(ctx, row) {
   const text = ctx.message.text.trim();
@@ -173,7 +210,7 @@ async function handleOnboardingText(ctx, row) {
       return;
     }
     saveOnboarding({ ...row, step: 'phone', name: text });
-    await ctx.reply('Phone number?');
+    await ctx.reply('Step 2 of 3: Phone number? Button dabaiye ya type kijiye.', { reply_markup: phoneKeyboard() });
     return;
   }
 
@@ -183,9 +220,24 @@ async function handleOnboardingText(ctx, row) {
       return;
     }
     saveOnboarding({ ...row, step: 'payout', phone: text });
+    await askPayout(ctx);
+    return;
   }
 
-  await ctx.reply('Paise kahan aaye?', { reply_markup: payoutKeyboard() });
+  await ctx.reply('Step 3 of 3: Paise kahan aaye?', { reply_markup: payoutKeyboard() });
+}
+
+// Telegram lets people share any contact, so only their own number counts.
+async function handleContact(ctx) {
+  const row = getOnboarding(ctx.chat.id);
+  if (row?.step !== 'phone') return;
+  const { contact } = ctx.message;
+  if (contact.user_id !== ctx.from.id) {
+    await ctx.reply('Apna hi number share kijiye, ya type kar dijiye.');
+    return;
+  }
+  saveOnboarding({ ...row, step: 'payout', phone: contact.phone_number });
+  await askPayout(ctx);
 }
 
 function slugFor(name) {
@@ -216,7 +268,7 @@ async function handlePayout(ctx) {
   deleteOnboarding(chatId);
 
   await ctx.answerCallbackQuery({ text: 'Shop ready ✓' });
-  await ctx.editMessageText('Paise kahan aaye? PhonePe balance ✓');
+  await ctx.editMessageText('Payout: PhonePe balance ✓');
   await sendShopKit(ctx, shop);
 }
 
@@ -287,6 +339,7 @@ export function startBot() {
   bot = new Bot(config.TELEGRAM_BOT_TOKEN);
   bot.command('start', handleStart);
   bot.command('retry', handleRetry);
+  bot.command('help', (ctx) => ctx.reply(`Main Sikku hoon! Aaj ki kamai ya limits ke baare mein seedha pooch sakte hain.\n\n${HELP_TEXT}`));
   bot.command('today', ownerCommand(handleToday));
   bot.command('sales', ownerCommand(handleSales));
   bot.command('caps', ownerCommand(handleCaps));
@@ -294,10 +347,17 @@ export function startBot() {
   bot.callbackQuery(/^approve:(.+)$/, handleApprove);
   bot.callbackQuery(/^reject:(.+)$/, handleReject);
   bot.callbackQuery('payout:phonepe', handlePayout);
+  bot.on('message:contact', handleContact);
   bot.on('message:text', handleText);
   bot.catch((err) => console.error(`Telegram handler failed: ${err.message}`));
 
   bot
-    .start({ onStart: (me) => console.log(`Telegram bot @${me.username} is running`) })
+    .start({
+      onStart: (me) => {
+        botUsername = me.username;
+        console.log(`Telegram bot @${me.username} is running`);
+        bot.api.setMyCommands(COMMANDS).catch((err) => console.error(`Could not set bot commands: ${err.message}`));
+      },
+    })
     .catch((err) => console.error(`Telegram bot stopped: ${err.message}`));
 }

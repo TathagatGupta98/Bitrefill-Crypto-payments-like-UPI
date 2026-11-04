@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ec">
+  <meta name="description" content="Sikka lets an Indian shop accept USDC through one Telegram chat and one printed QR.">
+  <title>Sikka: crypto payments for your shop</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body class="site">
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
+      <nav class="nav-links">
+        <a href="/how-it-works">How it works</a>
+        <a class="optional" href="#safety">Safety</a>
+        <a class="button" href="/start">Get started</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Crypto payments for local shops</p>
+          <h1>Your shop can take crypto. <em>No wallet needed.</em></h1>
+          <p class="lead">A customer scans your QR and pays in USDC. You get the value as a PhonePe gift card, right in Telegram. Setup is one short chat.</p>
+          <div class="actions">
+            <a class="button" data-bot-link href="/start">Start on Telegram</a>
+            <a class="button button-quiet" href="/how-it-works">See how it works</a>
+          </div>
+        </div>
+
+        <div class="demo">
+          <div class="phone" aria-hidden="true">
+            <div class="scene" data-caption="1. The customer scans your QR">
+              <small>Sharma Chai</small>
+              <h3>Scan to pay</h3>
+              <div class="scene-qr"></div>
+              <small style="margin-top: 10px">Phone camera, no app needed</small>
+            </div>
+            <div class="scene" data-caption="2. They pick an amount, like UPI">
+              <small>Paying Sharma Chai</small>
+              <p class="scene-big">₹100</p>
+              <small>About 1.14 USDC</small>
+              <div class="mini-chips">
+                <span class="on">₹100</span><span>₹500</span><span>₹1,000</span><span>₹2,000</span>
+              </div>
+            </div>
+            <div class="scene" data-caption="3. They pay from their own wallet">
+              <small>Send exactly</small>
+              <p class="scene-big">1.14 USDC</p>
+              <small style="margin-bottom: 14px">on Base</small>
+              <span class="scene-pill">Open wallet</span>
+              <img src="/mascot/think.svg" alt="" style="margin-top: 18px; width: 84px">
+            </div>
+            <div class="scene scene-ok" data-caption="4. Paid. Everyone can see it">
+              <img src="/mascot/happy.svg" alt="">
+              <h3>Paid ₹100</h3>
+              <small>to Sharma Chai</small>
+            </div>
+            <div class="scene scene-night" data-caption="5. Your soundbox announces it">
+              <img src="/mascot/happy.svg" alt="">
+              <p class="scene-big">+ ₹100</p>
+              <span class="bubble">“Crypto se 100 rupaye prapt hue”</span>
+            </div>
+            <div class="scene tg" data-caption="6. Your card arrives on Telegram">
+              <div class="tg-msg">
+                <strong>✅ Crypto se ₹100 prapt hue!</strong><br>
+                PhonePe gift card:<br>
+                Code: <code>XXXX…1234</code><br>
+                Claim it: PhonePe → Gift Cards → Add.
+              </div>
+              <div class="tg-btn">📋 Claimed ✅</div>
+            </div>
+          </div>
+          <img class="demo-mascot" src="/mascot/wave.svg" alt="Sikku, a friendly coin mascot, waving" width="124" height="131">
+          <p id="demo-caption" class="demo-caption"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-white">
+      <div class="wrap">
+        <h2>Three steps, and you're open for crypto</h2>
+        <p class="band-intro">No new app, no seed phrase and no crypto knowledge. If you can use Telegram, you can use Sikka.</p>
+        <div class="grid-3">
+          <div class="tile">
+            <div class="tile-num">1</div>
+            <h3>Chat with Sikku</h3>
+            <p>Answer three short questions on Telegram: your shop's name, your number and how you'd like to be paid.</p>
+          </div>
+          <div class="tile">
+            <div class="tile-num">2</div>
+            <h3>Put up your QR</h3>
+            <p>Print your standee and keep it next to your PhonePe QR. Open the soundbox on a phone at the counter.</p>
+          </div>
+          <div class="tile">
+            <div class="tile-num">3</div>
+            <h3>Get paid</h3>
+            <p>When a customer pays, you hear it, and a PhonePe gift card for that amount arrives in your chat.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <h2>Simple on both sides of the counter</h2>
+        <p class="band-intro">It feels like UPI, because that's what people already know.</p>
+        <div class="grid-2">
+          <div class="tile">
+            <h3>For shop owners</h3>
+            <ul class="ticks">
+              <li>No crypto wallet or exchange account</li>
+              <li>A soundbox that speaks Hindi</li>
+              <li>Ask “aaj kitna aaya?” in plain Hinglish</li>
+              <li>Change your limits just by asking</li>
+            </ul>
+          </div>
+          <div class="tile">
+            <h3>For customers</h3>
+            <ul class="ticks">
+              <li>Scan with the phone camera, no app to install</li>
+              <li>Pay with USDC on Base from any wallet</li>
+              <li>Clear live status, from payment to done</li>
+              <li>A receipt with a reference and on-chain proof</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="safety" class="band band-green">
+      <div class="wrap">
+        <h2>An agent with limits you control</h2>
+        <p class="band-intro">Sikka buys without a human at checkout, so its limits live in code, not in an AI's judgement.</p>
+        <div class="grid-3">
+          <div class="tile">
+            <h3>You set the limits</h3>
+            <p>By default, anything over ₹500 needs your approval and sales stop at ₹2,000 a day.</p>
+          </div>
+          <div class="tile">
+            <h3>You approve big sales</h3>
+            <p>Over your limit, you get Approve and Reject buttons. The customer can't pay until you tap one.</p>
+          </div>
+          <div class="tile">
+            <h3>AI can't touch money</h3>
+            <p>The assistant only answers your questions and changes your limits within fixed ceilings. Every money step is plain code.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-white">
+      <div class="wrap">
+        <h2>Good to know</h2>
+        <div class="faq" style="margin-top: 16px">
+          <details>
+            <summary>Do I receive rupees in my bank account?</summary>
+            <p>No. You receive a PhonePe gift card for the sale amount, which you add to PhonePe as gift card balance.</p>
+          </details>
+          <details>
+            <summary>Who holds the customer's money?</summary>
+            <p>For real purchases, the customer's USDC goes straight to the gift card provider, Bitrefill, to pay for your card. Sikka doesn't hold it.</p>
+          </details>
+          <details>
+            <summary>What if a purchase fails?</summary>
+            <p>The customer sees a clear screen with a reference and you get an alert on Telegram. Refunds are handled by hand for now.</p>
+          </details>
+          <details>
+            <summary>Is this ready for my shop today?</summary>
+            <p>Sikka is an early prototype built for a hackathon. Please treat it as a demo for now, not as a finished payment service.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap cta">
+        <div>
+          <h2>Say namaste to Sikku</h2>
+          <p class="band-intro" style="margin-bottom: 18px">Your QR is three short questions away.</p>
+          <a class="button" data-bot-link href="/start">Start on Telegram</a>
+        </div>
+        <img src="/mascot/happy.svg" alt="" width="130" height="137">
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>Sikka is a prototype built for Free Society Hack. Gift cards are fulfilled by Bitrefill.</p>
+      <p>Not affiliated with or endorsed by PhonePe.</p>
+    </div>
+  </footer>
+
+  <script src="/site.js"></script>
+</body>
+</html>

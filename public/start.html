@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ec">
+  <title>Get started with Sikka</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body class="site">
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
+      <nav class="nav-links">
+        <a href="/how-it-works">How it works</a>
+        <a class="optional" href="/#safety">Safety</a>
+        <a class="button" href="/start">Get started</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="band">
+      <div class="wrap">
+        <h2>Set up your shop in one chat</h2>
+        <p class="band-intro">All you need is Telegram. Printing the standee is optional, since your QR also works from a phone screen.</p>
+
+        <div class="start-grid">
+          <ol class="steps-big">
+            <li>
+              <h3>Open Sikku on Telegram</h3>
+              <p>Tap the button, or scan the code from another device, then press Start.</p>
+            </li>
+            <li>
+              <h3>Answer three short questions</h3>
+              <p>Your shop's name, your phone number and how you'd like to be paid.</p>
+            </li>
+            <li>
+              <h3>Get your shop kit</h3>
+              <p>Sikku sends your payment QR, a standee to print and your soundbox link.</p>
+            </li>
+            <li>
+              <h3>Put it on your counter</h3>
+              <p>Place the QR where customers can scan it. Open the soundbox on a phone nearby, tap Start, and keep the volume up.</p>
+            </li>
+            <li>
+              <h3>Try it once yourself</h3>
+              <p>Open your own pay page and walk through it, so you know what customers will see.</p>
+            </li>
+          </ol>
+
+          <div class="bot-card card">
+            <img src="/mascot/wave.svg" alt="" width="110" height="116" style="width: 110px; height: auto">
+            <img id="bot-qr" class="bot-qr" alt="QR code to open the Sikka bot on Telegram" width="200" height="200" hidden>
+            <a class="button" data-bot-link href="/start">Open Sikku on Telegram</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>Sikka is a prototype built for Free Society Hack. Gift cards are fulfilled by Bitrefill.</p>
+      <p>Not affiliated with or endorsed by PhonePe.</p>
+    </div>
+  </footer>
+
+  <script src="/site.js"></script>
+</body>
+</html>

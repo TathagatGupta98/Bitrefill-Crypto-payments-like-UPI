@@ -72,6 +72,8 @@ button {
 }
 
 .brand {
+  color: inherit;
+  text-decoration: none;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -998,8 +1000,8 @@ h2 {
 }
 
 .hit img {
-  width: 96px;
-  height: 96px;
+  width: 150px;
+  height: auto;
   margin-bottom: 20px;
   animation: coin-drop 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) both;
 }
@@ -1271,5 +1273,37 @@ td.error-cell {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Sikku the mascot */
+
+.result-mascot {
+  flex: none;
+  width: 132px;
+  height: auto;
+  margin-bottom: 12px;
+  animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.wait-mascot {
+  display: block;
+  width: 104px;
+  height: auto;
+  margin: 0 auto 16px;
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.soundbox-mascot {
+  display: block;
+  width: 132px;
+  height: auto;
+  margin: 24px auto 0;
+  animation: bob 2s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-8px);
   }
 }

@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="28" height="28">Sikka</a>
     <span class="tag">Pay with USDC</span>
   </header>
 
@@ -109,7 +109,7 @@
     </section>
 
     <section id="screen-wait" class="wait card" hidden>
-      <div id="wait-spinner" class="spinner"></div>
+      <img id="wait-mascot" class="wait-mascot" src="/mascot/think.svg" alt="" width="104" height="110">
       <p id="wait-text" class="wait-text" role="status" aria-live="polite"></p>
       <p id="wait-sub" class="wait-sub"></p>
       <ol id="wait-steps" class="steps" hidden>
@@ -122,12 +122,7 @@
   </main>
 
   <section id="screen-result" class="result" hidden>
-    <div class="result-icon" aria-hidden="true">
-      <svg viewBox="0 0 84 84">
-        <circle cx="42" cy="42" r="42"></circle>
-        <path id="result-mark"></path>
-      </svg>
-    </div>
+    <img id="result-mascot" class="result-mascot" src="/mascot/happy.svg" alt="" width="132" height="139">
     <h1 id="result-title"></h1>
     <p id="result-text"></p>
 

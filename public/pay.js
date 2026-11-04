@@ -1,8 +1,6 @@
 const POLL_MS = 2000;
 const TOAST_MS = 1800;
 const URGENT_SECONDS = 120;
-const CHECK_PATH = 'M26 43l11 11 21-23';
-const CROSS_PATH = 'M30 30l24 24M54 30L30 54';
 const SUCCESS = ['delivered', 'claimed'];
 const FAILURES = {
   expired: {
@@ -111,7 +109,7 @@ function renderWait(sale, { text, sub, showSteps }) {
   $('wait-text').textContent = text;
   $('wait-sub').textContent = sub;
   $('wait-steps').hidden = !showSteps;
-  $('wait-spinner').hidden = showSteps;
+  $('wait-mascot').src = showSteps ? '/mascot/happy.svg' : '/mascot/think.svg';
   $('wait-ref').textContent = `Ref ${sale.ref}`;
   show('screen-wait');
 }
@@ -120,7 +118,7 @@ function renderResult(sale) {
   const success = SUCCESS.includes(sale.status);
   const failure = FAILURES[sale.status];
   $('screen-result').className = `result ${success ? 'result-ok' : 'result-bad'}`;
-  $('result-mark').setAttribute('d', success ? CHECK_PATH : CROSS_PATH);
+  $('result-mascot').src = success ? '/mascot/happy.svg' : '/mascot/oops.svg';
   $('result-title').textContent = success ? `Paid ${rupees(sale.amountInr)}` : failure.title;
   $('result-text').textContent = success ? `to ${shopName}` : failure.text;
   $('result-ref').textContent = sale.ref;

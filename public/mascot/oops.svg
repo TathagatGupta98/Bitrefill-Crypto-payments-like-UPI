@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -4 216 228" role="img" aria-label="Sikku the coin">
+  <path d="M78 178 L72 202 L56 204" fill="none" stroke="#10241f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M122 178 L128 202 L144 204" fill="none" stroke="#10241f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M26 110 L12 142" fill="none" stroke="#10241f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="146" r="9" fill="#f2a516" stroke="#10241f" stroke-width="5"/><path d="M174 110 L188 142" fill="none" stroke="#10241f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="189" cy="146" r="9" fill="#f2a516" stroke="#10241f" stroke-width="5"/>
+  <circle cx="100" cy="102" r="80" fill="#a86c00"/>
+  <circle cx="100" cy="98" r="80" fill="#f2a516"/>
+  <circle cx="100" cy="98" r="66" fill="none" stroke="#a86c00" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>
+  <path d="M46 66 A66 66 0 0 1 96 32" fill="none" stroke="#ffc94d" stroke-width="8" stroke-linecap="round"/>
+  <g fill="none" stroke="#a86c00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".8"><path d="M91 44h19M91 52h19M95 44c8 0 10 4 10 8s-4 8-10 8h-3l13 12" transform="translate(0 -8) scale(1)"/></g>
+  <circle cx="76" cy="92" r="11" fill="#10241f"/><circle cx="124" cy="92" r="11" fill="#10241f"/><circle cx="79" cy="88" r="4" fill="#fff"/><circle cx="127" cy="88" r="4" fill="#fff"/><circle cx="58" cy="112" r="10" fill="#f07f4f" opacity=".55"/><circle cx="142" cy="112" r="10" fill="#f07f4f" opacity=".55"/><path d="M84 128 Q100 112 116 128" fill="none" stroke="#10241f" stroke-width="6" stroke-linecap="round"/><path d="M62 74 L86 68" fill="none" stroke="#10241f" stroke-width="5" stroke-linecap="round"/><path d="M138 74 L114 68" fill="none" stroke="#10241f" stroke-width="5" stroke-linecap="round"/>
+  <path d="M52 158 C78 176 122 176 148 158 L154 172 C124 192 76 192 46 172 Z" fill="#0d5c4c"/>
+  <path d="M140 170 L160 196 L140 194 L132 178 Z" fill="#0d5c4c"/>
+  <path d="M158 44 C166 56 170 62 170 68 A12 12 0 0 1 146 68 C146 62 150 56 158 44 Z" fill="#7cc8ee" stroke="#10241f" stroke-width="3"/>
+</svg>

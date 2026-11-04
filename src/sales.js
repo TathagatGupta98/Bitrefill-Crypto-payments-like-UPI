@@ -126,8 +126,12 @@ export async function approveSale(sale) {
 export async function amountOptions(shop) {
   const options = [];
   for (const inr of ALLOWED_INR) {
-    const { check } = await quoteAndCheck(shop, inr);
-    options.push(check.ok === false ? { inr, enabled: false, reason: check.reason } : { inr, enabled: true });
+    const { offer, check } = await quoteAndCheck(shop, inr);
+    if (check.ok === false) {
+      options.push({ inr, enabled: false, reason: check.reason });
+    } else {
+      options.push({ inr, enabled: true, approxUsdc: formatUnits(BigInt(offer.usdcUnits), USDC_DECIMALS) });
+    }
   }
   return options;
 }
@@ -153,6 +157,7 @@ export function saleView(sale) {
     eip681: eip681(address, sale.usdc_amount_units),
     expiresAt: isoTime(sale.expires_at),
     deliveredAt: isoTime(sale.delivered_at),
+    txHash: sale.payer_tx_hash ?? undefined,
     ref: saleRef(sale.id),
     invoiceId: sale.bitrefill_invoice_id ?? undefined,
     devMode: config.DEV_MODE,

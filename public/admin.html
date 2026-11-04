@@ -4,16 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sikka Admin</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <main class="admin">
-    <h1>Sales</h1>
-    <div class="admin-scroll">
+    <div class="admin-bar">
+      <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka admin</div>
+      <span class="tag"><span class="dot"></span>Live</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat card"><p class="stat-label">Received</p><p id="stat-total" class="stat-value">–</p></div>
+      <div class="stat card"><p class="stat-label">Delivered</p><p id="stat-delivered" class="stat-value">–</p></div>
+      <div class="stat card"><p class="stat-label">In progress</p><p id="stat-open" class="stat-value">–</p></div>
+      <div class="stat card"><p class="stat-label">Failed</p><p id="stat-failed" class="stat-value">–</p></div>
+    </div>
+
+    <div class="admin-scroll card">
       <table>
         <thead>
           <tr>
-            <th>Ref</th><th>Time (UTC)</th><th>Shop</th><th>₹</th><th>USDC</th><th>Status</th><th>Base tx</th><th>Invoice</th><th>Order</th><th>Error</th>
+            <th>Ref</th><th>Time (UTC)</th><th>Shop</th><th class="num">₹</th><th class="num">USDC</th><th>Status</th><th>Base tx</th><th>Invoice</th><th>Order</th><th>Error</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -24,19 +39,52 @@
 
   <script>
     const REFRESH_MS = 5000;
+    const DONE = ['delivered', 'claimed'];
+    const OPEN = ['awaiting_approval', 'awaiting_payment', 'paid', 'purchasing'];
+    const BAD = ['failed'];
 
-    function cell(row, text, href) {
+    function cell(row, text, className) {
       const td = row.insertCell();
-      if (href) {
-        const link = document.createElement('a');
-        link.href = href;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = text;
-        td.append(link);
-      } else {
-        td.textContent = text ?? '–';
-      }
+      td.textContent = text ?? '–';
+      if (className) td.className = className;
+      return td;
+    }
+
+    function linkCell(row, text, href) {
+      if (!href) return cell(row, null);
+      const td = row.insertCell();
+      const link = document.createElement('a');
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = text;
+      td.append(link);
+      return td;
+    }
+
+    function badgeClass(status) {
+      if (DONE.includes(status)) return 'badge badge-ok';
+      if (BAD.includes(status)) return 'badge badge-bad';
+      if (OPEN.includes(status)) return 'badge';
+      return 'badge badge-idle';
+    }
+
+    function statusCell(row, status) {
+      const badge = document.createElement('span');
+      badge.className = badgeClass(status);
+      badge.textContent = status.replaceAll('_', ' ');
+      row.insertCell().append(badge);
+    }
+
+    function renderStats(sales) {
+      const count = (statuses) => sales.filter((sale) => statuses.includes(sale.status)).length;
+      const total = sales
+        .filter((sale) => DONE.includes(sale.status))
+        .reduce((sum, sale) => sum + sale.amount_inr, 0);
+      document.getElementById('stat-total').textContent = `₹${total.toLocaleString('en-IN')}`;
+      document.getElementById('stat-delivered').textContent = count(DONE);
+      document.getElementById('stat-open').textContent = count(OPEN);
+      document.getElementById('stat-failed').textContent = count(BAD);
     }
 
     async function refresh() {
@@ -45,18 +93,20 @@
       body.replaceChildren();
       for (const sale of sales) {
         const row = body.insertRow();
-        cell(row, `SIK-${sale.id.slice(0, 6).toUpperCase()}`);
+        cell(row, `SIK-${sale.id.slice(0, 6).toUpperCase()}`, 'mono');
         cell(row, sale.created_at);
         cell(row, sale.shop);
-        cell(row, sale.amount_inr.toLocaleString('en-IN'));
-        cell(row, (Number(sale.usdc_amount_units) / 1e6).toString());
-        cell(row, sale.status);
+        cell(row, sale.amount_inr.toLocaleString('en-IN'), 'num');
+        cell(row, (Number(sale.usdc_amount_units) / 1e6).toString(), 'num');
+        statusCell(row, sale.status);
         const tx = sale.payer_tx_hash;
-        cell(row, tx ? `${tx.slice(0, 10)}…` : null, tx ? `https://basescan.org/tx/${tx}` : null);
-        cell(row, sale.bitrefill_invoice_id);
-        cell(row, sale.bitrefill_order_id);
-        cell(row, sale.error);
+        linkCell(row, tx ? `${tx.slice(0, 10)}…` : null, tx ? `https://basescan.org/tx/${tx}` : null);
+        cell(row, sale.bitrefill_invoice_id, 'mono');
+        cell(row, sale.bitrefill_order_id, 'mono');
+        const error = cell(row, sale.error, sale.error ? 'error-cell' : '');
+        if (sale.error) error.title = sale.error;
       }
+      renderStats(sales);
       document.getElementById('empty').hidden = sales.length > 0;
     }
 

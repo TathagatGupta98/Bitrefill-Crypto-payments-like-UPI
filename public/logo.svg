@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Sikka">
+  <circle cx="16" cy="16" r="15.5" fill="#f2a516"/>
+  <circle cx="16" cy="16" r="12.2" fill="none" stroke="#a86c00" stroke-width="1"/>
+  <path d="M10.8 10h10.4M10.8 14h10.4M13 10c4.700 0 6.300 1.800 6.300 4s-2.300 4-6.300 4h-1.700l7.400 7" fill="none" stroke="#10241f" stroke-width="2.100" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

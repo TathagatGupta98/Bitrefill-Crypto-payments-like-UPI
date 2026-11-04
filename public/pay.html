@@ -2,78 +2,145 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ec">
   <title>Pay with Sikka</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
+    <span class="tag">Pay with USDC</span>
+  </header>
+
   <main class="page">
-    <header class="shop">
-      <h1 id="shop-name">Loading…</h1>
-      <p id="shop-verified" class="verified" hidden>✓ Verified Sikka merchant</p>
-    </header>
+    <div class="merchant card">
+      <div id="shop-avatar" class="avatar" aria-hidden="true"></div>
+      <div>
+        <p class="merchant-label">Paying</p>
+        <h1 id="shop-name"><span class="skeleton"></span></h1>
+        <p id="shop-verified" class="verified" hidden>✓ Verified Sikka merchant</p>
+      </div>
+    </div>
 
     <section id="screen-select" hidden>
-      <h2>Choose amount</h2>
+      <div class="amount-hero">
+        <p id="amount-value" class="amount-hero-value is-empty">₹0</p>
+        <p id="amount-sub" class="amount-hero-sub">Choose an amount</p>
+      </div>
+
       <div id="chips" class="chips"></div>
       <p id="chip-note" class="note"></p>
 
       <h2>Pay with</h2>
       <div class="rail rail-on">
-        <span>USDC on Base</span>
-        <span>✓</span>
+        <span class="rail-mark" aria-hidden="true">$</span>
+        <span class="rail-text">
+          <span class="rail-title">USDC on Base</span>
+          <span class="rail-sub">From any crypto wallet</span>
+        </span>
+        <span class="rail-check" aria-label="Selected">✓</span>
       </div>
       <div class="rail rail-off">
-        <span>Lightning</span>
-        <span>soon</span>
+        <span class="rail-mark" aria-hidden="true">⚡</span>
+        <span class="rail-text">
+          <span class="rail-title">Lightning</span>
+          <span class="rail-sub">Coming soon</span>
+        </span>
       </div>
 
-      <p id="select-error" class="error" hidden></p>
-      <button id="pay-button" class="primary" disabled>Choose an amount</button>
+      <div class="paybar">
+        <p id="select-error" class="error" role="alert" hidden></p>
+        <button id="pay-button" class="primary" disabled>Choose an amount</button>
+      </div>
     </section>
 
     <section id="screen-pay" hidden>
-      <p class="send-label">Send exactly</p>
-      <p class="send-amount"><span id="pay-usdc"></span> USDC</p>
-      <p class="send-label">on Base, for ₹<span id="pay-inr"></span></p>
+      <div class="send-card card">
+        <div class="status-row">
+          <span class="watching"><span class="dot"></span>Waiting for payment</span>
+          <span class="timer" id="timer"><span id="countdown"></span> left</span>
+        </div>
+        <p class="send-label">Send exactly</p>
+        <p class="send-amount"><span id="pay-usdc"></span> <small>USDC</small></p>
+        <p class="send-label">to pay ₹<span id="pay-inr"></span></p>
+        <span class="network">Base network</span>
+      </div>
 
-      <p class="warning">Send the exact amount — it identifies your payment.</p>
+      <div class="pay-actions">
+        <a id="open-wallet" class="primary">Open wallet</a>
 
-      <a id="open-wallet" class="primary">Open wallet</a>
+        <button id="copy-amount" class="copy">
+          <span class="copy-label">Amount</span>
+          <span id="copy-amount-value" class="copy-value"></span>
+          <span class="copy-action">Copy</span>
+        </button>
+        <button id="copy-address" class="copy" aria-label="Copy address">
+          <span class="copy-label">Address</span>
+          <span id="copy-address-value" class="copy-value"></span>
+          <span class="copy-action">Copy</span>
+        </button>
+      </div>
 
-      <button id="copy-amount" class="copy">
-        <span class="copy-label">Amount</span>
-        <span id="copy-amount-value" class="copy-value"></span>
-        <span class="copy-action">Copy</span>
-      </button>
-      <button id="copy-address" class="copy">
-        <span class="copy-label">Address</span>
-        <span id="copy-address-value" class="copy-value"></span>
-        <span class="copy-action">Copy</span>
-      </button>
+      <div class="checklist">
+        <strong>Before you confirm in your wallet</strong>
+        <ul>
+          <li>The network says <b>Base</b>, not Ethereum.</li>
+          <li>The amount is exact. It identifies your payment.</li>
+          <li>The network fee should be a few cents at most. If it shows dollars, stop and check before confirming.</li>
+        </ul>
+      </div>
 
-      <img id="pay-qr" class="qr" alt="QR code to pay from another device" width="240" height="240">
+      <details class="qr-toggle">
+        <summary>Paying from another device? Show QR</summary>
+        <img id="pay-qr" class="qr" alt="QR code to pay from another device" width="220" height="220">
+      </details>
 
-      <p class="note">Time left: <strong id="countdown"></strong></p>
       <p class="note">Keep this page open. It updates when your payment arrives.</p>
-      <button id="simulate" class="link" hidden>Simulate payment</button>
+      <a id="change-amount" class="link">Change amount</a>
+
+      <div id="dev-tools" class="dev" hidden>
+        <button id="simulate" class="link">Simulate payment (dev)</button>
+      </div>
     </section>
 
-    <section id="screen-wait" class="wait" hidden>
-      <div class="spinner"></div>
-      <p id="wait-text"></p>
+    <section id="screen-wait" class="wait card" hidden>
+      <div id="wait-spinner" class="spinner"></div>
+      <p id="wait-text" class="wait-text" role="status" aria-live="polite"></p>
+      <p id="wait-sub" class="wait-sub"></p>
+      <ol id="wait-steps" class="steps" hidden>
+        <li class="is-done">Payment received</li>
+        <li class="is-now">Completing the sale</li>
+        <li>Shop gets paid</li>
+      </ol>
       <p id="wait-ref" class="note"></p>
     </section>
   </main>
 
   <section id="screen-result" class="result" hidden>
-    <div id="result-icon" class="result-icon"></div>
+    <div class="result-icon" aria-hidden="true">
+      <svg viewBox="0 0 84 84">
+        <circle cx="42" cy="42" r="42"></circle>
+        <path id="result-mark"></path>
+      </svg>
+    </div>
     <h1 id="result-title"></h1>
     <p id="result-text"></p>
-    <p id="result-ref" class="result-ref"></p>
-    <p id="result-time" class="result-ref"></p>
+
+    <div class="receipt">
+      <div class="receipt-row"><span>Reference</span><span id="result-ref"></span></div>
+      <div id="result-time-row" class="receipt-row"><span>Time</span><span id="result-time"></span></div>
+      <div id="result-tx-row" class="receipt-row"><span>Transaction</span><span><a id="result-tx" target="_blank" rel="noopener">View on Basescan</a></span></div>
+    </div>
+
     <a id="result-again" class="result-again">Make another payment</a>
   </section>
+
+  <div id="toast" class="toast" role="status" hidden></div>
 
   <script src="/pay.js"></script>
 </body>

@@ -4,18 +4,36 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sikka Standee</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="standee-page">
   <button class="primary print-button" onclick="window.print()">🖨 Print</button>
 
   <article class="standee">
-    <p class="standee-brand">Sikka</p>
-    <h1 id="shop-name">Loading…</h1>
-    <p class="standee-line">Pay with crypto · USDC</p>
-    <img id="qr" class="standee-qr" alt="QR code to pay this shop" width="800" height="800">
-    <p class="verified">✓ Verified Sikka merchant</p>
-    <p class="standee-line">Scan with phone camera — no app needed</p>
+    <div class="standee-band">
+      <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
+      <h1 id="shop-name">&nbsp;</h1>
+      <p class="standee-line">Pay with crypto · USDC</p>
+    </div>
+
+    <div class="standee-qr-wrap">
+      <img id="qr" class="standee-qr" alt="QR code to pay this shop" width="800" height="800">
+    </div>
+
+    <ol class="standee-steps">
+      <li>Scan</li>
+      <li>Pick amount</li>
+      <li>Send USDC</li>
+    </ol>
+
+    <div class="standee-foot">
+      <p class="verified">✓ Verified Sikka merchant</p>
+      <p class="standee-hint">Scan with phone camera — no app needed</p>
+    </div>
   </article>
 
   <script>

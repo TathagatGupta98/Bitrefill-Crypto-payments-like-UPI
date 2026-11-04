@@ -1,9 +1,13 @@
 const POLL_MS = 2000;
+const TOAST_MS = 1800;
+const URGENT_SECONDS = 120;
+const CHECK_PATH = 'M26 43l11 11 21-23';
+const CROSS_PATH = 'M30 30l24 24M54 30L30 54';
 const SUCCESS = ['delivered', 'claimed'];
 const FAILURES = {
   expired: {
-    title: 'Payment window ended',
-    text: 'This sale has expired. If you already sent USDC, show this reference to the shop.',
+    title: 'Time ran out',
+    text: 'This payment window has ended. If you already sent USDC, show this reference to the shop.',
   },
   rejected: { title: 'Payment declined', text: 'The shop declined this payment. Nothing was charged.' },
   failed: {
@@ -14,17 +18,30 @@ const FAILURES = {
 
 const $ = (id) => document.getElementById(id);
 const rupees = (inr) => `₹${inr.toLocaleString('en-IN')}`;
+const shortAddress = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
 const slug = location.pathname.split('/')[2];
 let shopName = '';
 let chosenInr = null;
 let countdownTimer = null;
+let toastTimer = null;
 let currentSale = null;
+let fullAddress = '';
 
 function show(screen) {
   for (const id of ['screen-select', 'screen-pay', 'screen-wait', 'screen-result']) {
     $(id).hidden = id !== screen;
   }
+  window.scrollTo(0, 0);
+}
+
+function toast(text) {
+  $('toast').textContent = text;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    $('toast').hidden = true;
+  }, TOAST_MS);
 }
 
 async function api(path, options) {
@@ -34,26 +51,32 @@ async function api(path, options) {
   return body;
 }
 
+function chooseAmount(chip, { inr, approxUsdc }) {
+  chosenInr = inr;
+  for (const other of $('chips').children) other.classList.toggle('chip-on', other === chip);
+  $('amount-value').textContent = rupees(inr);
+  $('amount-value').classList.remove('is-empty');
+  $('amount-sub').textContent = `About ${Number(approxUsdc).toFixed(2)} USDC`;
+  $('pay-button').disabled = false;
+  $('pay-button').textContent = `Pay ${rupees(inr)}`;
+}
+
 function renderChips(amounts) {
   $('chips').replaceChildren(
-    ...amounts.map(({ inr, enabled }) => {
+    ...amounts.map((amount) => {
       const chip = document.createElement('button');
       chip.className = 'chip';
-      chip.textContent = rupees(inr);
-      chip.disabled = !enabled;
-      chip.addEventListener('click', () => {
-        chosenInr = inr;
-        for (const other of $('chips').children) other.classList.toggle('chip-on', other === chip);
-        $('pay-button').disabled = false;
-        $('pay-button').textContent = `Pay ${rupees(inr)}`;
-      });
+      chip.textContent = rupees(amount.inr);
+      chip.disabled = !amount.enabled;
+      chip.addEventListener('click', () => chooseAmount(chip, amount));
       return chip;
     }),
   );
 
   const reasons = new Set(amounts.filter((amount) => !amount.enabled).map((amount) => amount.reason));
-  $('chip-note').textContent = reasons.size ? `Some amounts are off: ${[...reasons].join(', ')}.` : '';
+  $('chip-note').textContent = reasons.size ? `Some amounts are unavailable: ${[...reasons].join(', ')}.` : '';
   if (amounts.every((amount) => !amount.enabled)) {
+    $('amount-sub').textContent = 'Not available right now';
     $('pay-button').textContent = 'Not available right now';
   }
 }
@@ -64,25 +87,31 @@ function startCountdown(expiresAt) {
     const secondsLeft = Math.max(0, Math.floor((new Date(expiresAt) - Date.now()) / 1000));
     const seconds = String(secondsLeft % 60).padStart(2, '0');
     $('countdown').textContent = `${Math.floor(secondsLeft / 60)}:${seconds}`;
+    $('timer').classList.toggle('is-urgent', secondsLeft < URGENT_SECONDS);
   };
   tick();
   countdownTimer = setInterval(tick, 1000);
 }
 
 function renderPay(sale) {
+  fullAddress = sale.address;
   $('pay-usdc').textContent = sale.usdc;
   $('pay-inr').textContent = sale.amountInr.toLocaleString('en-IN');
   $('open-wallet').href = sale.eip681;
   $('copy-amount-value').textContent = sale.usdc;
-  $('copy-address-value').textContent = sale.address;
+  $('copy-address-value').textContent = shortAddress(sale.address);
   $('pay-qr').src = `/api/sales/${sale.id}/qr.png`;
-  $('simulate').hidden = !sale.devMode;
+  $('dev-tools').hidden = !sale.devMode;
+  $('change-amount').href = `/pay/${slug}`;
   startCountdown(sale.expiresAt);
   show('screen-pay');
 }
 
-function renderWait(text, sale) {
+function renderWait(sale, { text, sub, showSteps }) {
   $('wait-text').textContent = text;
+  $('wait-sub').textContent = sub;
+  $('wait-steps').hidden = !showSteps;
+  $('wait-spinner').hidden = showSteps;
   $('wait-ref').textContent = `Ref ${sale.ref}`;
   show('screen-wait');
 }
@@ -91,12 +120,17 @@ function renderResult(sale) {
   const success = SUCCESS.includes(sale.status);
   const failure = FAILURES[sale.status];
   $('screen-result').className = `result ${success ? 'result-ok' : 'result-bad'}`;
-  $('result-icon').textContent = success ? '✓' : '✕';
-  $('result-title').textContent = success ? `Paid ✓ ${rupees(sale.amountInr)}` : failure.title;
+  $('result-mark').setAttribute('d', success ? CHECK_PATH : CROSS_PATH);
+  $('result-title').textContent = success ? `Paid ${rupees(sale.amountInr)}` : failure.title;
   $('result-text').textContent = success ? `to ${shopName}` : failure.text;
-  $('result-ref').textContent = `Ref ${sale.ref}`;
+  $('result-ref').textContent = sale.ref;
+  $('result-time-row').hidden = !success;
   $('result-time').textContent = success ? new Date(sale.deliveredAt).toLocaleString('en-IN') : '';
+  $('result-tx-row').hidden = !sale.txHash;
+  if (sale.txHash) $('result-tx').href = `https://basescan.org/tx/${sale.txHash}`;
   $('result-again').href = `/pay/${slug}`;
+  document.querySelector('meta[name="theme-color"]').content = success ? '#0a7d4f' : '#b5352a';
+  if (success) navigator.vibrate?.(80);
   show('screen-result');
 }
 
@@ -104,11 +138,15 @@ function renderResult(sale) {
 function renderSale(sale) {
   currentSale = sale;
   if (sale.status === 'awaiting_approval') {
-    renderWait('Waiting for the shop to approve…', sale);
+    renderWait(sale, {
+      text: 'Waiting for the shop to approve…',
+      sub: 'This amount is over the shop’s limit. No need to pay yet.',
+      showSteps: false,
+    });
   } else if (sale.status === 'awaiting_payment') {
     if ($('screen-pay').hidden) renderPay(sale);
   } else if (sale.status === 'paid' || sale.status === 'purchasing') {
-    renderWait('Payment received ✓ — finishing up…', sale);
+    renderWait(sale, { text: 'Payment received ✓ — finishing up…', sub: '', showSteps: true });
   } else {
     renderResult(sale);
     return true;
@@ -133,7 +171,9 @@ async function poll(saleId) {
 }
 
 async function startPayment() {
+  const label = $('pay-button').textContent;
   $('pay-button').disabled = true;
+  $('pay-button').textContent = 'Preparing…';
   $('select-error').hidden = true;
   try {
     const sale = await api('/api/sales', {
@@ -149,31 +189,32 @@ async function startPayment() {
     $('select-error').textContent = err.message;
     $('select-error').hidden = false;
     $('pay-button').disabled = false;
+    $('pay-button').textContent = label;
   }
 }
 
-function setUpCopy(buttonId, valueId) {
-  const action = $(buttonId).querySelector('.copy-action');
+function setUpCopy(buttonId, label, getValue) {
   $(buttonId).addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText($(valueId).textContent);
-      action.textContent = 'Copied ✓';
+      await navigator.clipboard.writeText(getValue());
+      toast(`${label} copied ✓`);
     } catch {
-      action.textContent = 'Copy failed';
+      toast('Could not copy. Please copy it by hand.');
     }
-    setTimeout(() => {
-      action.textContent = 'Copy';
-    }, 2000);
   });
 }
 
 async function start() {
   $('pay-button').addEventListener('click', startPayment);
   $('simulate').addEventListener('click', () => {
-    api(`/api/dev/sales/${currentSale.id}/mark-paid`, { method: 'POST' }).catch((err) => alert(err.message));
+    $('simulate').disabled = true;
+    api(`/api/dev/sales/${currentSale.id}/mark-paid`, { method: 'POST' }).catch((err) => {
+      $('simulate').disabled = false;
+      toast(err.message);
+    });
   });
-  setUpCopy('copy-amount', 'copy-amount-value');
-  setUpCopy('copy-address', 'copy-address-value');
+  setUpCopy('copy-amount', 'Amount', () => $('copy-amount-value').textContent);
+  setUpCopy('copy-address', 'Address', () => fullAddress);
 
   let shop;
   try {
@@ -186,6 +227,7 @@ async function start() {
   shopName = shop.name;
   document.title = `Pay ${shop.name}`;
   $('shop-name').textContent = shop.name;
+  $('shop-avatar').textContent = shop.name.trim().charAt(0).toUpperCase();
   $('shop-verified').hidden = !shop.verified;
 
   const saleId = new URLSearchParams(location.search).get('sale');

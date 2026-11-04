@@ -57,7 +57,10 @@
           <div class="bot-card card">
             <img src="/mascot/wave.svg" alt="" width="110" height="116" style="width: 110px; height: auto">
             <img id="bot-qr" class="bot-qr" alt="QR code to open the Sikka bot on Telegram" width="200" height="200" hidden>
-            <a class="button" data-bot-link href="/start">Open Sikku on Telegram</a>
+            <a class="button" data-bot-link data-direct href="/start">Open Sikku on Telegram</a>
+            <a id="bot-web" class="button button-quiet bot-web" target="_blank" rel="noopener" hidden>Open in Telegram Web</a>
+            <p class="note">Button not working? Telegram may not be installed on this computer. Scan the code with your phone, use Telegram Web, or search for this bot:</p>
+            <p id="bot-handle" class="bot-handle no-translate"></p>
           </div>
         </div>
       </div>

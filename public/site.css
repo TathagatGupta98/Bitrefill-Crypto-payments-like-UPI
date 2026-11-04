@@ -534,6 +534,16 @@
   display: block;
 }
 
+.bot-web {
+  margin-top: 8px;
+}
+
+.bot-handle {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
 .steps-big {
   margin: 0;
   padding: 0;

@@ -56,8 +56,8 @@ function handleTransfer(log) {
     if (late) {
       notifyOwner(
         getShopById(late.shop_id),
-        `⚠️ ${saleRef(late.id)}: बिक्री की समय सीमा खत्म होने के बाद पैसा आया। कोई कार्ड नहीं खरीदा गया, ग्राहक को रिफंड दीजिए।\n` +
-          `Sale ${saleRef(late.id)} (₹${late.amount_inr}) had expired when ${usdc} USDC arrived from ${log.args.from}. ` +
+        `⚠️ ${saleRef(late.id)}: बिक्री की समय सीमा खत्म होने के बाद ${usdc} USDC आया। कोई कार्ड नहीं खरीदा गया, ग्राहक को रिफंड दीजिए।`,
+        `⚠️ Sale ${saleRef(late.id)} (₹${late.amount_inr}) had expired when ${usdc} USDC arrived from ${log.args.from}. ` +
           'No card was bought. Refund the customer manually.',
       );
     }

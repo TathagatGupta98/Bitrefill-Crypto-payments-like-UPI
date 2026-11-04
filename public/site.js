@@ -50,11 +50,15 @@ function startDemo() {
   }, SCENE_MS);
 }
 
+// t.me's own Start Bot button only opens an installed Telegram app, so on a computer it can do
+// nothing at all. Computers go to the start page first, which also offers a QR and Telegram Web.
 async function connectBotLinks() {
   try {
-    const { url } = await (await fetch('/api/bot')).json();
+    const { url, username } = await (await fetch('/api/bot')).json();
     if (!url) return;
+    const onTouchDevice = matchMedia('(pointer: coarse)').matches;
     document.querySelectorAll('[data-bot-link]').forEach((link) => {
+      if (!onTouchDevice && link.dataset.direct === undefined) return;
       link.href = url;
       link.target = '_blank';
       link.rel = 'noopener';
@@ -63,6 +67,10 @@ async function connectBotLinks() {
     if (qr) {
       qr.src = '/bot-qr.png';
       qr.hidden = false;
+      document.getElementById('bot-handle').textContent = `@${username}`;
+      const web = document.getElementById('bot-web');
+      web.href = `https://web.telegram.org/k/#@${username}`;
+      web.hidden = false;
     }
   } catch {
     // The links keep pointing at the start page, which still explains the steps.

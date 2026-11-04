@@ -157,7 +157,8 @@ export async function amountOptions(shop) {
 }
 
 export const shopPayUrl = (shop) => `${config.PUBLIC_URL}/pay/${shop.slug}`;
-export const soundboxUrl = (shop) => `${config.PUBLIC_URL}/soundbox/${shop.slug}?k=${shop.soundbox_key}`;
+export const soundboxUrl = (shop) =>
+  `${config.PUBLIC_URL}/soundbox/${shop.slug}?k=${shop.soundbox_key}${shop.lang === 'hi' ? '&lang=hi' : ''}`;
 export const shopQrPng = (shop) => QRCode.toBuffer(shopPayUrl(shop), { width: 800, margin: 2 });
 
 const isoTime = (sqlite) => (sqlite ? `${sqlite.replace(' ', 'T')}Z` : null);

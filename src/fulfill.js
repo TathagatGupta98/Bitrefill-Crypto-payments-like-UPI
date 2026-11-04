@@ -25,8 +25,8 @@ async function failSale(sale, shop, reason) {
   logEvent(sale.id, 'purchase_failed', reason);
   await notifyOwner(
     shop,
-    `⚠️ ${saleRef(sale.id)}: ₹${sale.amount_inr} का पेमेंट मिला, पर कार्ड नहीं खरीदा जा सका। ग्राहक को रिफंड देना होगा।\n` +
-      `Sale ${saleRef(sale.id)} paid ₹${sale.amount_inr} but the card purchase failed (${reason}). ` +
+    `⚠️ ${saleRef(sale.id)}: ₹${sale.amount_inr} का पेमेंट मिला, पर कार्ड नहीं खरीदा जा सका (${reason})। ग्राहक को रिफंड देना होगा।`,
+    `⚠️ Sale ${saleRef(sale.id)} paid ₹${sale.amount_inr} but the card purchase failed (${reason}). ` +
       (config.PAY_MODE === 'direct'
         ? `Bitrefill refunds this to ${config.RECEIVE_ADDRESS}, then send it back to the customer.`
         : `Customer refund needed: ${sale.payer_address ?? 'payer address unknown'}.`),
@@ -152,9 +152,8 @@ async function waitForCard(sale, shop) {
   // The sale stays in `purchasing`, so a retry resumes the same invoice.
   await notifyOwner(
     shop,
-    `⏳ ${saleRef(sale.id)} (₹${sale.amount_inr}): Bitrefill को सामान्य से ज़्यादा समय लग रहा है।\n` +
-      `Bitrefill is taking longer than usual. ` +
-      `Invoice ${sale.bitrefill_invoice_id}. Try again with /retry ${sale.id}`,
+    `⏳ ${saleRef(sale.id)} (₹${sale.amount_inr}): Bitrefill को सामान्य से ज़्यादा समय लग रहा है। Invoice ${sale.bitrefill_invoice_id}। फिर कोशिश करें: /retry ${sale.id}`,
+    `⏳ Sale ${saleRef(sale.id)} (₹${sale.amount_inr}): Bitrefill is taking longer than usual. Invoice ${sale.bitrefill_invoice_id}. Try again with /retry ${sale.id}`,
   );
 }
 

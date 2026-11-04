@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS shops (
   daily_cap_inr INTEGER NOT NULL,
   pin_hash TEXT,
   soundbox_key TEXT,
+  lang TEXT NOT NULL DEFAULT 'en',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS sales (
 
 CREATE TABLE IF NOT EXISTS chain_cursor (id INTEGER PRIMARY KEY CHECK (id=1), last_block INTEGER);
 CREATE TABLE IF NOT EXISTS seen_logs (tx_hash TEXT, log_index INTEGER, PRIMARY KEY (tx_hash, log_index));
-CREATE TABLE IF NOT EXISTS onboarding (chat_id TEXT PRIMARY KEY, step TEXT, name TEXT, phone TEXT);
+CREATE TABLE IF NOT EXISTS onboarding (chat_id TEXT PRIMARY KEY, step TEXT, name TEXT, phone TEXT, lang TEXT);
 CREATE TABLE IF NOT EXISTS sale_events (
   id INTEGER PRIMARY KEY,
   sale_id TEXT NOT NULL REFERENCES sales(id),
@@ -77,7 +78,8 @@ addMissingColumns('sales', {
   reveal_expires_at: 'TEXT',
   reveal_attempts: 'INTEGER NOT NULL DEFAULT 0',
 });
-addMissingColumns('shops', { pin_hash: 'TEXT', soundbox_key: 'TEXT' });
+addMissingColumns('shops', { pin_hash: 'TEXT', soundbox_key: 'TEXT', lang: "TEXT NOT NULL DEFAULT 'en'" });
+addMissingColumns('onboarding', { lang: 'TEXT' });
 
 // Sales that count towards the daily caps. Expired, rejected and failed sales release their share.
 const COUNTED_STATUSES = `('awaiting_approval', 'awaiting_payment', 'paid', 'purchasing', 'delivered', 'claimed')`;
@@ -130,10 +132,11 @@ const directSales = db.prepare(`
 `);
 
 const shopInsert = db.prepare(`
-  INSERT INTO shops (slug, name, phone, telegram_chat_id, payout, per_sale_cap_inr, daily_cap_inr, soundbox_key)
-  VALUES (@slug, @name, @phone, @telegram_chat_id, @payout, @per_sale_cap_inr, @daily_cap_inr, @soundbox_key)
+  INSERT INTO shops (slug, name, phone, telegram_chat_id, payout, per_sale_cap_inr, daily_cap_inr, soundbox_key, lang)
+  VALUES (@slug, @name, @phone, @telegram_chat_id, @payout, @per_sale_cap_inr, @daily_cap_inr, @soundbox_key, @lang)
 `);
 const capsUpdate = db.prepare('UPDATE shops SET per_sale_cap_inr = ?, daily_cap_inr = ? WHERE id = ?');
+const langUpdate = db.prepare('UPDATE shops SET lang = ? WHERE id = ?');
 const pinUpdate = db.prepare('UPDATE shops SET pin_hash = ? WHERE id = ?');
 const keylessShops = db.prepare('SELECT id FROM shops WHERE soundbox_key IS NULL');
 const soundboxKeyUpdate = db.prepare('UPDATE shops SET soundbox_key = ? WHERE id = ?');
@@ -151,8 +154,8 @@ const eventInsert = db.prepare('INSERT INTO sale_events (sale_id, type, detail) 
 const eventList = db.prepare('SELECT type, detail, created_at FROM sale_events WHERE sale_id = ? ORDER BY id');
 const onboardingRead = db.prepare('SELECT * FROM onboarding WHERE chat_id = ?');
 const onboardingWrite = db.prepare(`
-  INSERT INTO onboarding (chat_id, step, name, phone) VALUES (@chat_id, @step, @name, @phone)
-  ON CONFLICT (chat_id) DO UPDATE SET step = excluded.step, name = excluded.name, phone = excluded.phone
+  INSERT INTO onboarding (chat_id, step, name, phone, lang) VALUES (@chat_id, @step, @name, @phone, @lang)
+  ON CONFLICT (chat_id) DO UPDATE SET step = excluded.step, name = excluded.name, phone = excluded.phone, lang = excluded.lang
 `);
 const onboardingDelete = db.prepare('DELETE FROM onboarding WHERE chat_id = ?');
 
@@ -236,6 +239,7 @@ export const recentSales = (shopId, limit) => recent.all(shopId, limit);
 export const unclaimedSales = (shopId) => unclaimed.all(shopId);
 export const adminSales = (limit) => adminList.all(limit);
 
+export const setShopLang = (shopId, lang) => langUpdate.run(lang, shopId);
 export const setShopPin = (shopId, pinHash) => pinUpdate.run(pinHash, shopId);
 export const shopsWithoutSoundboxKey = () => keylessShops.all();
 export const setSoundboxKey = (shopId, key) => soundboxKeyUpdate.run(key, shopId);

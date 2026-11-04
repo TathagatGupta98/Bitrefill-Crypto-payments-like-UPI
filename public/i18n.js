@@ -129,6 +129,8 @@ const HINDI = {
   'Ready to try it?': 'आज़माने के लिए तैयार?',
   'Set up a shop in four short questions.': 'चार छोटे सवालों में दुकान सेट करें।',
   // Start
+  'Open in Telegram Web': 'Telegram Web में खोलें',
+  'Button not working? Telegram may not be installed on this computer. Scan the code with your phone, use Telegram Web, or search for this bot:': 'बटन काम नहीं कर रहा? शायद इस कंप्यूटर पर टेलीग्राम इंस्टॉल नहीं है। फ़ोन से कोड स्कैन करें, Telegram Web इस्तेमाल करें, या यह बॉट खोजें:',
   'Set up your shop in one chat': 'एक चैट में अपनी दुकान सेट करें',
   'All you need is Telegram. Printing the standee is optional, since your QR also works from a phone screen.': 'बस टेलीग्राम चाहिए। स्टैंडी प्रिंट करना ज़रूरी नहीं, QR फ़ोन की स्क्रीन से भी चलता है।',
   'Open Sikku on Telegram': 'टेलीग्राम पर सिक्कू खोलें',

@@ -48,8 +48,8 @@ function unlock(token, pin) {
   logEvent(sale.id, 'link_locked', `Link locked after ${MAX_PIN_ATTEMPTS} wrong PINs`);
   notifyOwner(
     shop,
-    `⚠️ ${saleRef(sale.id)}: गलत PIN कई बार डाला गया, इसलिए लिंक बंद कर दिया गया। नया लिंक: /cards\n` +
-      `⚠️ ${saleRef(sale.id)}: too many wrong PINs, so this link was locked. Get a new one with /cards.`,
+    `⚠️ ${saleRef(sale.id)}: गलत PIN कई बार डाला गया, इसलिए लिंक बंद कर दिया गया। नया लिंक: /cards`,
+    `⚠️ ${saleRef(sale.id)}: too many wrong PINs, so this link was locked. Get a new one with /cards.`,
   );
   return { status: 423, reason: 'locked' };
 }

@@ -31,7 +31,12 @@ routes.get('/bot-qr.png', async (req, res) => {
 
 routes.get('/pay/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'pay.html')));
 routes.get('/standee/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'standee.html')));
-routes.get('/soundbox/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'soundbox.html')));
+routes.get('/counter/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'counter.html')));
+// Older soundbox links keep working.
+routes.get('/soundbox/:slug', (req, res) => {
+  const query = new URLSearchParams(req.query).toString();
+  res.redirect(`/counter/${encodeURIComponent(req.params.slug)}${query ? `?${query}` : ''}`);
+});
 
 routes.get('/qr/:slug.png', async (req, res) => {
   const shop = getShopBySlug(req.params.slug);
@@ -52,29 +57,29 @@ routes.get('/api/shops/:slug/name', (req, res) => {
   res.json({ name: shop.name });
 });
 
-// Sales figures are private, so the soundbox needs the key from the owner's Telegram link.
-function soundboxShop(req, res) {
+// Sales figures are private, so the QR page needs the key from the owner's Telegram link.
+function counterShop(req, res) {
   const shop = getShopBySlug(req.params.slug);
   if (!shop) {
     res.status(404).json({ reason: 'shop not found' });
     return null;
   }
   if (!shop.soundbox_key || req.query.k !== shop.soundbox_key) {
-    res.status(403).json({ reason: 'open the soundbox link from your Telegram chat' });
+    res.status(403).json({ reason: 'open this link from your Telegram chat' });
     return null;
   }
   return shop;
 }
 
 routes.get('/api/shops/:slug/summary', (req, res) => {
-  const shop = soundboxShop(req, res);
+  const shop = counterShop(req, res);
   if (!shop) return;
   const { count, totalInr } = salesSummary(shop.id, 'today');
   res.json({ name: shop.name, todayCount: count, todayInr: totalInr });
 });
 
 routes.get('/api/shops/:slug/events', (req, res) => {
-  const shop = soundboxShop(req, res);
+  const shop = counterShop(req, res);
   if (shop) sseHandler(shop.slug)(req, res);
 });
 

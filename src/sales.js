@@ -157,8 +157,8 @@ export async function amountOptions(shop) {
 }
 
 export const shopPayUrl = (shop) => `${config.PUBLIC_URL}/pay/${shop.slug}`;
-export const soundboxUrl = (shop) =>
-  `${config.PUBLIC_URL}/soundbox/${shop.slug}?k=${shop.soundbox_key}${shop.lang === 'hi' ? '&lang=hi' : ''}`;
+export const counterUrl = (shop) =>
+  `${config.PUBLIC_URL}/counter/${shop.slug}?k=${shop.soundbox_key}${shop.lang === 'hi' ? '&lang=hi' : ''}`;
 export const shopQrPng = (shop) => QRCode.toBuffer(shopPayUrl(shop), { width: 800, margin: 2 });
 
 const isoTime = (sqlite) => (sqlite ? `${sqlite.replace(' ', 'T')}Z` : null);
@@ -229,7 +229,7 @@ export function startDirectPoller() {
   tick();
 }
 
-// Shops made before soundbox links were private need a key of their own.
+// Shops made before these links were private need a key of their own.
 export function addSoundboxKeys() {
   for (const { id } of shopsWithoutSoundboxKey()) setSoundboxKey(id, newSecret());
 }

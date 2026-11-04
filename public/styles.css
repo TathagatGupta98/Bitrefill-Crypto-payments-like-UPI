@@ -1479,3 +1479,69 @@ td.error-cell {
 :lang(hi) body {
   line-height: 1.6;
 }
+
+/* Live QR page: the QR and the soundbox on one screen */
+
+.counter-line {
+  margin: 4px 0 16px;
+  color: var(--night-muted);
+  font-size: 14px;
+}
+
+.counter-skeleton {
+  width: 180px;
+  margin: 0 auto;
+  opacity: 0.3;
+}
+
+.counter-qr-wrap {
+  width: min(78vw, 56vh, 360px);
+  padding: 12px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px var(--marigold);
+}
+
+.counter-qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.counter-sound {
+  max-width: 360px;
+  margin-top: 20px;
+}
+
+.counter-note {
+  margin: 18px 0 0;
+  color: var(--night-muted);
+  font-size: 13px;
+}
+
+.counter-tools {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.counter-tools .link {
+  margin: 8px 0 0;
+}
+
+.today-panel {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+  color: var(--night-muted);
+  font-size: 13px;
+}
+
+.today-panel summary {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.today-panel .today {
+  color: #ffffff;
+}

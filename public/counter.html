@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1a16">
-  <title>Sikka Soundbox</title>
+  <title>Sikka QR</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,27 +16,32 @@
     <div class="soundbox-top">
       <div class="brand"><img src="/logo.svg" alt="" width="28" height="28">Sikka</div>
       <span id="lang-slot"></span>
-      <span id="status" class="pill" hidden><span class="dot"></span><span id="listening">Listening…</span></span>
+      <span id="status" class="pill"><span class="dot"></span><span id="listening">Connecting…</span></span>
     </div>
 
     <div class="soundbox-main">
-      <h1 id="shop-name">Soundbox</h1>
+      <h1 id="shop-name"><span class="skeleton counter-skeleton"></span></h1>
+      <p class="counter-line">Scan to pay with crypto · USDC</p>
 
-      <div id="setup">
-        <img class="soundbox-mascot" src="/mascot/wave.svg" alt="" width="132" height="139">
-        <p class="soundbox-hint">Keep this page open near your counter, with the volume up.</p>
-        <button id="start" class="primary">🔊 Tap to start soundbox</button>
+      <div id="qr-wrap" class="counter-qr-wrap" hidden>
+        <img id="qr" class="counter-qr" alt="QR code to pay this shop" width="800" height="800">
       </div>
 
-      <div id="live" hidden>
-        <div class="coin-pulse"><img src="/mascot/wave.svg" alt="" width="112" height="118"></div>
+      <button id="sound-on" class="primary counter-sound" hidden>🔊 Tap to turn on sound</button>
+      <p id="sound-ready" class="counter-note" hidden>🔊 Sound on. Keep this page open with the volume up.</p>
+
+      <div id="tools" class="counter-tools" hidden>
+        <button id="test-sound" class="link test-sound">Test sound</button>
+        <a id="print-standee" class="link test-sound" target="_blank" rel="noopener">Print standee</a>
+      </div>
+
+      <details id="today-panel" class="today-panel" hidden>
+        <summary>Today's sales</summary>
         <div class="today-card">
-          <p class="today-label">Today</p>
           <p id="today" class="today"></p>
         </div>
         <ul id="recent" class="recent"></ul>
-        <button id="test-sound" class="link test-sound">Test sound</button>
-      </div>
+      </details>
     </div>
   </main>
 
@@ -56,18 +61,19 @@
     const key = encodeURIComponent(new URLSearchParams(location.search).get('k') ?? '');
     const $ = (id) => document.getElementById(id);
     const rupees = (inr) => `₹${inr.toLocaleString('en-IN')}`;
-    let audio;
+    let audio = null;
     let flashTimer;
 
     async function refreshToday() {
       const res = await fetch(`/api/shops/${slug}/summary?k=${key}`);
       if (!res.ok) {
         $('shop-name').textContent = t(res.status === 403 ? 'Open this link from your Telegram chat' : 'Shop not found');
-        $('setup').hidden = true;
+        $('status').hidden = true;
         return false;
       }
       const { name, todayInr, todayCount } = await res.json();
       $('shop-name').textContent = name;
+      document.title = name;
       $('today').textContent = `${rupees(todayInr)} · ${todayCount} ${t(todayCount === 1 ? 'sale' : 'sales')}`;
       return true;
     }
@@ -108,9 +114,13 @@
       $('recent').querySelectorAll(`li:nth-child(n + ${MAX_RECENT + 1})`).forEach((old) => old.remove());
     }
 
+    // The animation always plays. Sound needs one tap first, because browsers block it until then.
     function announce(amountInr) {
-      chime();
-      setTimeout(() => speak(amountInr), SPEECH_DELAY_MS);
+      if (audio) {
+        chime();
+        setTimeout(() => speak(amountInr), SPEECH_DELAY_MS);
+      }
+      navigator.vibrate?.(200);
 
       $('flash').textContent = `+ ${rupees(amountInr)}`;
       $('flash').hidden = false;
@@ -126,7 +136,7 @@
       try {
         await navigator.wakeLock?.request('screen');
       } catch {
-        // Not supported everywhere, and the soundbox still works without it.
+        // Not supported everywhere, and the page still works without it.
       }
     }
 
@@ -134,7 +144,7 @@
       const source = new EventSource(`/api/shops/${slug}/events?k=${key}`);
       // Also runs after a reconnect, in case a sale came in while the connection was down.
       source.onopen = () => {
-        $('listening').textContent = t('Listening…');
+        $('listening').textContent = t('Live');
         $('status').classList.remove('is-off');
         refreshToday();
       };
@@ -151,24 +161,34 @@
       };
     }
 
-    // Browsers only allow sound after a tap, so everything audio starts here.
-    $('start').addEventListener('click', () => {
+    function turnOnSound() {
       audio = new AudioContext();
       audio.resume();
       speechSynthesis.getVoices();
       speechSynthesis.speak(new SpeechSynthesisUtterance(''));
       keepScreenOn();
-      $('setup').hidden = true;
-      $('live').hidden = false;
-      $('status').hidden = false;
-      listen();
-    });
+      $('sound-on').hidden = true;
+      $('sound-ready').hidden = false;
+      $('test-sound').hidden = false;
+    }
+
+    $('sound-on').addEventListener('click', turnOnSound);
     $('test-sound').addEventListener('click', () => announce(100));
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && audio) keepScreenOn();
     });
 
-    refreshToday();
+    refreshToday().then((ok) => {
+      if (!ok) return;
+      $('qr').src = `/qr/${slug}.png`;
+      $('qr-wrap').hidden = false;
+      $('sound-on').hidden = false;
+      $('tools').hidden = false;
+      $('test-sound').hidden = true;
+      $('print-standee').href = `/standee/${slug}`;
+      $('today-panel').hidden = false;
+      listen();
+    });
   </script>
 </body>
 </html>

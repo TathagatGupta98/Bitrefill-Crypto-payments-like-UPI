@@ -11,7 +11,7 @@ const ANSWERS = [
   },
   {
     q: 'How long is setup?',
-    a: 'Four short questions on Telegram. Then I send your QR, a standee to print and a soundbox link.',
+    a: 'Four short questions on Telegram. Then I send one link to your live QR page, which also announces payments.',
   },
   {
     q: 'Is my card code safe?',

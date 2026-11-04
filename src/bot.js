@@ -21,7 +21,7 @@ import {
   unclaimedSales,
 } from './db.js';
 import { retrySale } from './fulfill.js';
-import { approveSale, shopPayUrl, shopQrPng, soundboxUrl } from './sales.js';
+import { approveSale, counterUrl } from './sales.js';
 import { hashPin, newSecret } from './vault.js';
 
 const MAX_NAME_CHARS = 60;
@@ -198,40 +198,28 @@ async function handleRetry(ctx) {
   await ctx.reply(sale ? retrySale(sale, shop) : 'Sale not found.');
 }
 
+// One link does it all: the page shows the QR, and announces each payment with sound and animation.
 async function sendShopKit(ctx, shop) {
-  const lang = shop.lang;
-  await ctx.replyWithPhoto(new InputFile(await shopQrPng(shop), 'sikka-qr.png'), {
-    caption: say(lang, `${shop.name} का पेमेंट QR। ग्राहक इसे फ़ोन कैमरे से स्कैन करे।`, `${shop.name}'s payment QR. Customers scan it with their phone camera.`),
-  });
+  const { lang } = shop;
   await ctx.reply(
     say(
       lang,
       [
         '✅ आपकी दुकान तैयार है!',
         '',
-        '1. 🖨 स्टैंडी प्रिंट करके काउंटर पर रखिए',
-        '2. 🔊 साउंडबॉक्स काउंटर के पास वाले फ़ोन पर खोलिए',
-        '3. 🧪 एक बार पे पेज देख लीजिए',
+        'नीचे अपना QR पेज खोलिए और फ़ोन या टैबलेट को काउंटर पर रखिए। ग्राहक वहीं स्कैन करेगा, और पेमेंट होते ही पेज बोलकर बताएगा।',
         '',
         `लिमिट: बिना मंज़ूरी ${rupees(shop.per_sale_cap_inr)} प्रति बिक्री, ${rupees(shop.daily_cap_inr)} प्रति दिन। बदलनी हो तो बस मुझसे कहिए।`,
       ].join('\n'),
       [
         '✅ Your shop is ready!',
         '',
-        '1. 🖨 Print the standee for your counter',
-        '2. 🔊 Open the soundbox on a phone near your counter',
-        '3. 🧪 Check your pay page once',
+        'Open your QR page below and keep the phone or tablet on your counter. Customers scan it there, and it announces each payment out loud.',
         '',
         `Limits: ${rupees(shop.per_sale_cap_inr)} per sale without approval, ${rupees(shop.daily_cap_inr)} per day. Change anytime, just ask me.`,
       ].join('\n'),
     ),
-    {
-      reply_markup: new InlineKeyboard()
-        .url(say(lang, '🖨 स्टैंडी', '🖨 Standee'), `${config.PUBLIC_URL}/standee/${shop.slug}`)
-        .url(say(lang, '🔊 साउंडबॉक्स', '🔊 Soundbox'), soundboxUrl(shop))
-        .row()
-        .url(say(lang, '🧪 पे पेज', '🧪 Pay page'), shopPayUrl(shop)),
-    },
+    { reply_markup: new InlineKeyboard().url(say(lang, '📱 QR पेज खोलें', '📱 Open QR page'), counterUrl(shop)) },
   );
 }
 

@@ -2,7 +2,7 @@
 
 **An Indian shopkeeper accepts USDC through one Telegram chat and one printed QR.**
 
-A customer scans the shop's QR, picks ₹100 and pays USDC on Base from their own wallet. The Sikka agent checks the shop's guardrails, creates a Bitrefill invoice for a PhonePe gift card, sees the payment land, and delivers the card to the owner on Telegram. A browser "soundbox" on the counter then announces *"crypto se 100 rupaye prapt hue"*.
+A customer scans the shop's QR, picks ₹100 and pays USDC on Base from their own wallet. The Sikka agent checks the shop's guardrails, creates a Bitrefill invoice for a PhonePe gift card, sees the payment land, and delivers the card to the owner on Telegram. A live QR page on the counter then plays an animation and announces *"crypto se 100 rupaye prapt hue"*.
 
 The owner never touches a crypto wallet, and the customer never installs an app. No human is involved at checkout.
 
@@ -28,7 +28,7 @@ Built for Free Society Hack, Agentic Commerce (Bitrefill) track.
 - **Test products** during development: `test-gift-card-code`, and `test-gift-card-code-fail` for the failure path
 - **Docs** while coding
 
-**Built:** payment page, direct invoice payments, Base USDC watcher with unique-amount matching, guardrail engine, Telegram merchant agent, soundbox.
+**Built:** payment page, direct invoice payments, Base USDC watcher with unique-amount matching, guardrail engine, Telegram merchant agent, live QR page with a built-in soundbox.
 
 **Reused:** Bitrefill catalog and fulfillment, PhonePe gift card redemption, grammY, viem.
 
@@ -44,7 +44,7 @@ Built for Free Society Hack, Agentic Commerce (Bitrefill) track.
 - **Activity log:** every sale records its checks and steps, such as limits passed, invoice created, payment seen, card sealed, revealed and wiped, without ever storing a code.
 - **The LLM can't spend:** it answers the owner's questions with read-only tools plus `update_caps`, limited to the same ceilings. Every money step is deterministic code.
 
-**Known MVP gaps:** Sikka briefly holds customer USDC in relay mode. Direct mode refunds go to the operator's address, then back to the customer by hand. A direct payment made after a sale expires isn't tracked. Dev and admin routes have no auth. The soundbox and its daily total are protected only by a secret link. The encryption key sits on the same server as the database, so it protects a copied database file, not a compromised server. Bitrefill also holds each code in the operator's account. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
+**Known MVP gaps:** Sikka briefly holds customer USDC in relay mode. Direct mode refunds go to the operator's address, then back to the customer by hand. A direct payment made after a sale expires isn't tracked. Dev and admin routes have no auth. The QR page's sales figures are protected only by a secret link. The encryption key sits on the same server as the database, so it protects a copied database file, not a compromised server. Bitrefill also holds each code in the operator's account. Refunds are manual. Abandoned sales hold their share of the daily cap until they expire.
 
 ## Run it in under 15 minutes
 
@@ -97,7 +97,7 @@ Customer wallet --USDC on Base--> the invoice's own payment address
                                                   |
                       poll invoice -> paid -> all_delivered -> GET /v2/orders/{id}
                                                   |
-      Telegram: card code + PIN to the owner;  SSE: soundbox speaks;  pay page goes green
+      Telegram: card code + PIN to the owner;  SSE: QR page speaks;  pay page goes green
 ```
 
 **Relay (free rehearsal with test cards):** the customer pays Sikka, and Sikka buys from its Bitrefill balance.
@@ -111,7 +111,7 @@ Customer wallet --USDC on Base--> RECEIVE_ADDRESS
                                         |
                   poll invoice -> all_delivered -> GET /v2/orders/{id}
                                         |
-         Telegram: card code + PIN to the owner;  SSE: soundbox speaks;  pay page goes green
+         Telegram: card code + PIN to the owner;  SSE: QR page speaks;  pay page goes green
 ```
 
 In relay mode, each sale gets a unique USDC amount, such as `1.1849`, so a payment needs no memo: the watcher matches on the exact amount and the receive address.
@@ -127,7 +127,7 @@ In relay mode, each sale gets a unique USDC amount, such as `1.1849`, so a payme
 | `src/cards.js`, `src/vault.js` | Sealed cards: encryption, PIN checks, reveal links and wiping |
 | `src/bot.js` | Telegram onboarding, delivery, approvals and commands |
 | `src/agent.js` | LLM tool loop for the owner's free-text questions |
-| `public/` | Product site, pay page, card page, soundbox, printable standee, admin, in English and Hindi |
+| `public/` | Product site, pay page, card page, live QR page, printable standee, admin, in English and Hindi |
 
 ## Limits and next steps
 

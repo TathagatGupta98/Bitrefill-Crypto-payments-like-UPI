@@ -52,8 +52,10 @@ const COUNTED_STATUSES = `('awaiting_approval', 'awaiting_payment', 'paid', 'pur
 // Timestamps are stored in UTC, but the caps reset at midnight in India.
 const IS_TODAY_IST = `date(created_at, '+5 hours', '+30 minutes') = date('now', '+5 hours', '+30 minutes')`;
 
+const shopById = db.prepare('SELECT * FROM shops WHERE id = ?');
 const shopBySlug = db.prepare('SELECT * FROM shops WHERE slug = ?');
 const shopByChat = db.prepare('SELECT * FROM shops WHERE telegram_chat_id = ?');
+const saleById = db.prepare('SELECT * FROM sales WHERE id = ?');
 const saleInsert = db.prepare(`
   INSERT INTO sales (id, shop_id, amount_inr, usd_cost, usdc_amount_units, status, expires_at)
   VALUES (@id, @shop_id, @amount_inr, @usd_cost, @usdc_amount_units, @status, @expires_at)
@@ -69,8 +71,14 @@ const spendToday = db.prepare(`
   WHERE id IS NOT ? AND status IN ${COUNTED_STATUSES} AND ${IS_TODAY_IST}
 `);
 
+// Same format as SQLite's datetime('now'), so stored timestamps compare correctly.
+export const sqlTime = (date = new Date()) => date.toISOString().slice(0, 19).replace('T', ' ');
+export const saleRef = (id) => `SIK-${id.slice(0, 6).toUpperCase()}`;
+
+export const getShopById = (id) => shopById.get(id);
 export const getShopBySlug = (slug) => shopBySlug.get(slug);
 export const getShopByChat = (chatId) => shopByChat.get(String(chatId));
+export const getSale = (id) => saleById.get(id);
 export const insertSale = (sale) => saleInsert.run(sale);
 
 // Returns false if the sale wasn't in `from`, meaning another caller already moved it.
